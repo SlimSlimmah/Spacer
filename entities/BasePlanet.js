@@ -39,6 +39,7 @@ export default class BasePlanet {
     this.coreColor = coreColor
     this.ringColor = ringColor
     this.name = name
+    this.onClickCallback = null
     
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)
@@ -55,7 +56,12 @@ export default class BasePlanet {
 
     this.hitZone = scene.add.circle(x, y, 120)
     this.hitZone.setInteractive({ useHandCursor: true })
-    this.hitZone.on('pointerdown', () => this.triggerWave())
+    this.hitZone.on('pointerdown', () => {
+      this.triggerWave()
+      if (this.onClickCallback) {
+        this.onClickCallback(this)
+      }
+    })
 
     // Nameplate
     if (this.name) {
@@ -70,6 +76,10 @@ export default class BasePlanet {
     }
 
     this.draw()
+  }
+
+  setOnClick(callback) {
+    this.onClickCallback = callback
   }
 
   triggerWave() {

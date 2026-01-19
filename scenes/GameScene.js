@@ -1,4 +1,6 @@
 // src/scenes/GameScene.js
+import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.esm.js'
+
 import BasePlanet from '../entities/BasePlanet.js'
 
 export default class GameScene extends Phaser.Scene {

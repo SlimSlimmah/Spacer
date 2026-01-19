@@ -32,12 +32,13 @@ class RingLayer {
 }
 
 export default class BasePlanet {
-  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff) {
+  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '') {
     this.scene = scene
     this.x = x
     this.y = y
     this.coreColor = coreColor
     this.ringColor = ringColor
+    this.name = name
     
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)
@@ -55,6 +56,18 @@ export default class BasePlanet {
     this.hitZone = scene.add.circle(x, y, 120)
     this.hitZone.setInteractive({ useHandCursor: true })
     this.hitZone.on('pointerdown', () => this.triggerWave())
+
+    // Nameplate
+    if (this.name) {
+      this.nameText = scene.add.text(this.x, this.y - this.coreRadius - 20, this.name, {
+        fontSize: '16px',
+        color: '#ffffff',
+        backgroundColor: '#000000',
+        padding: { x: 8, y: 4 }
+      })
+      this.nameText.setOrigin(0.5)
+      this.nameText.setDepth(2)
+    }
 
     this.draw()
   }

@@ -43,6 +43,10 @@ export default class GameScene extends Phaser.Scene {
       this.cameras.main.setZoom(newZoom)
     })
 
+    // Create UI camera for fixed elements
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+    this.uiCamera.setScroll(0, 0)
+    
     // Mobile zoom buttons
     this.createZoomButtons()
   }
@@ -61,14 +65,15 @@ export default class GameScene extends Phaser.Scene {
     this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .setScrollFactor(0)
       .setDepth(100)
 
     this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '-', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .setScrollFactor(0)
       .setDepth(100)
+
+    // Make buttons only visible to UI camera
+    this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
 
     this.zoomInBtn.on('pointerdown', () => {
       const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.5, 3)

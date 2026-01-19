@@ -38,7 +38,7 @@ export default class GameScene extends Phaser.Scene {
     })
 
     this.input.on('pointermove', (pointer) => {
-      if (this.isPanning) {
+      if (this.isPanning && !this.isPinching) {
         this.cameras.main.scrollX = this.panStartX - pointer.x
         this.cameras.main.scrollY = this.panStartY - pointer.y
       }
@@ -54,6 +54,9 @@ export default class GameScene extends Phaser.Scene {
       const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
       this.cameras.main.setZoom(newZoom)
     })
+
+    // Pinch zoom setup
+    this.setupPinchZoom()
 
     // Create UI camera for fixed elements
     this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
@@ -73,6 +76,48 @@ export default class GameScene extends Phaser.Scene {
     
     // Mobile zoom buttons
     this.createZoomButtons()
+  }
+
+  setupPinchZoom() {
+    this.isPinching = false
+    this.pinchDistance = 0
+
+    // Listen to native touch events for pinch detection
+    this.game.canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        this.isPinching = true
+        this.isPanning = false
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        this.pinchDistance = Math.sqrt(dx * dx + dy * dy)
+      }
+    })
+
+    this.game.canvas.addEventListener('touchmove', (e) => {
+      if (this.isPinching && e.touches.length === 2) {
+        e.preventDefault()
+        
+        const dx = e.touches[0].clientX - e.touches[1].clientX
+        const dy = e.touches[0].clientY - e.touches[1].clientY
+        const newDistance = Math.sqrt(dx * dx + dy * dy)
+        
+        if (this.pinchDistance > 0) {
+          const scale = newDistance / this.pinchDistance
+          const currentZoom = this.cameras.main.zoom
+          const newZoom = Phaser.Math.Clamp(currentZoom * scale, 0.5, 3)
+          this.cameras.main.setZoom(newZoom)
+        }
+        
+        this.pinchDistance = newDistance
+      }
+    }, { passive: false })
+
+    this.game.canvas.addEventListener('touchend', (e) => {
+      if (e.touches.length < 2) {
+        this.isPinching = false
+        this.pinchDistance = 0
+      }
+    })
   }
 
   createZoomButtons() {

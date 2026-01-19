@@ -47,52 +47,42 @@ export default class GameScene extends Phaser.Scene {
     this.createZoomButtons()
   }
 
-  createZoomButtons() {
-    const buttonStyle = {
-      fontSize: '32px',
-      color: '#66ccff',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 15, y: 10 },
-      fixedWidth: 50,
-      fixedHeight: 50,
-      align: 'center'
-    }
-
-    this.zoomInBtn = this.add.text(0, 0, '+', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-
-    this.zoomOutBtn = this.add.text(0, 0, '-', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-
-    this.zoomInBtn.on('pointerdown', () => {
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-
-    this.zoomOutBtn.on('pointerdown', () => {
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-
-    this.updateButtonPositions()
+createZoomButtons() {
+  const buttonStyle = {
+    fontSize: '32px',
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 15, y: 10 },
+    fixedWidth: 50,
+    fixedHeight: 50,
+    align: 'center'
   }
 
-  updateButtonPositions() {
-    const cam = this.cameras.main
-    const rightEdge = cam.scrollX + cam.width / cam.zoom
-    const topEdge = cam.scrollY + 20 / cam.zoom
+  this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
+    .setOrigin(0.5)
+    .setInteractive({ useHandCursor: true })
+    .setScrollFactor(0) // This makes it ignore camera movement/zoom
+    .setDepth(100)
 
-    this.zoomInBtn.setPosition(rightEdge - 70 / cam.zoom, topEdge)
-    this.zoomOutBtn.setPosition(rightEdge - 70 / cam.zoom, topEdge + 65 / cam.zoom)
-  }
+  this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '-', buttonStyle)
+    .setOrigin(0.5)
+    .setInteractive({ useHandCursor: true })
+    .setScrollFactor(0) // This makes it ignore camera movement/zoom
+    .setDepth(100)
 
-  update() {
-    this.basePlanet.update()
-    this.ship.update()
-    this.updateButtonPositions()
-  }
+  this.zoomInBtn.on('pointerdown', () => {
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.5, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+
+  this.zoomOutBtn.on('pointerdown', () => {
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.5, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+}
+
+update() {
+  this.basePlanet.update()
+  this.ship.update()
+  // Removed updateButtonPositions() - no longer needed!
 }

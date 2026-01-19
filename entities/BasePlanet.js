@@ -15,7 +15,7 @@ class RingLayer {
   }
 
   trigger() {
-    this.waveStrength = Phaser.Math.Between(3, 6) // reduced for minimal distortion
+    this.waveStrength = Phaser.Math.Between(3, 6)
     this.wavePhase = 0
     this.frequency = Phaser.Math.Between(4, 10)
     for (let i = 0; i < this.noiseOffsets.length; i++) {
@@ -32,10 +32,13 @@ class RingLayer {
 }
 
 export default class BasePlanet {
-  constructor(scene, x, y) {
+  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff) {
     this.scene = scene
     this.x = x
     this.y = y
+    this.coreColor = coreColor
+    this.ringColor = ringColor
+    
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)
     this.segments = 72
@@ -76,13 +79,13 @@ export default class BasePlanet {
     g.clear()
 
     // ---- CORE RING (static) ----
-    g.lineStyle(4, 0x2a4a6e, 1)
+    g.lineStyle(4, this.coreColor, 1)
     g.strokeCircle(this.x, this.y, this.coreRadius)
 
     // ---- REACTIVE RINGS (only visible when active) ----
-    g.lineStyle(3, 0x66ccff, 0.9)
+    g.lineStyle(3, this.ringColor, 0.9)
     this.rings.forEach(ring => {
-      if (ring.waveStrength < 0.1) return // invisible when not active
+      if (ring.waveStrength < 0.1) return
 
       g.beginPath()
       for (let i = 0; i <= ring.segments; i++) {

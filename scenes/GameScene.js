@@ -11,12 +11,12 @@ export default class GameScene extends Phaser.Scene {
     const cx = this.scale.width / 2
     const cy = this.scale.height / 2
 
-    // First planet (blue)
-    this.basePlanet = new BasePlanet(this, cx, cy)
-    this.ship = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
+    // First planet (blue) with HOME PLANET nameplate
+    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
+    this.ship = new Ship(this, this.basePlanet, this.basePlanet.coreRadius, 'IDLE')
 
-    // Second planet (gray) - positioned to the right
-    this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999)
+    // Second planet (gray) with PLANET1 nameplate
+    this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1')
 
     // Camera pan setup
     this.isPanning = false
@@ -54,10 +54,13 @@ export default class GameScene extends Phaser.Scene {
     // Make UI camera ignore game objects
     this.uiCamera.ignore([
       this.basePlanet.graphics, 
-      this.basePlanet.hitZone, 
+      this.basePlanet.hitZone,
+      this.basePlanet.nameText,
       this.grayPlanet.graphics,
       this.grayPlanet.hitZone,
-      this.ship.graphics
+      this.grayPlanet.nameText,
+      this.ship.graphics,
+      this.ship.statusText
     ])
     
     // Mobile zoom buttons

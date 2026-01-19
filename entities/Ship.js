@@ -8,7 +8,7 @@ export default class Ship {
     this.orbitRadius = radius
     this.angle = 0
     this.rotationSpeed = 0.02
-    this.state = 'IDLE' // IDLE, TRAVELING_TO, ORBITING, TRAVELING_FROM
+    this.state = 'IDLE' // IDLE, SPIRALING, ORBITING
 
     // Visual representation
     this.graphics = scene.add.graphics()
@@ -27,6 +27,7 @@ export default class Ship {
     this.shipRadius = 5
     
     // Spiral animation properties
+    this.spiralCenter = { x: 0, y: 0 }
     this.spiralRadius = 0
     this.spiralAngle = 0
     
@@ -36,17 +37,18 @@ export default class Ship {
   travelTo(targetPlanet) {
     if (this.state !== 'IDLE') return
 
-    this.state = 'TRAVELING_TO'
+    this.state = 'SPIRALING'
     this.statusText.setText('TRAVELING')
     this.targetPlanet = targetPlanet
 
-    // Calculate initial distance and angle to target planet
-    const dx = targetPlanet.x - this.x
-    const dy = targetPlanet.y - this.y
+    // Calculate current distance and angle relative to target planet
+    const dx = this.x - targetPlanet.x
+    const dy = this.y - targetPlanet.y
     const startDistance = Math.sqrt(dx * dx + dy * dy)
     const startAngle = Math.atan2(dy, dx)
 
-    // Set up spiral properties
+    // Set up spiral - start from current position relative to target
+    this.spiralCenter = { x: targetPlanet.x, y: targetPlanet.y }
     this.spiralRadius = startDistance
     this.spiralAngle = startAngle
     
@@ -61,14 +63,14 @@ export default class Ship {
         this.spiralAngle += 0.05
         
         // Calculate position on spiral
-        this.x = targetPlanet.x + Math.cos(this.spiralAngle) * this.spiralRadius
-        this.y = targetPlanet.y + Math.sin(this.spiralAngle) * this.spiralRadius
+        this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+        this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
         
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
       onComplete: () => {
-        // Arrived at target planet - set angle for seamless orbit continuation
+        // Arrived at target planet
         this.angle = this.spiralAngle
         this.currentPlanet = targetPlanet
         this.state = 'ORBITING'
@@ -83,16 +85,17 @@ export default class Ship {
   }
 
   returnHome() {
-    this.state = 'TRAVELING_FROM'
+    this.state = 'SPIRALING'
     this.statusText.setText('RETURNING')
 
-    // Calculate distance to home
-    const dx = this.homePlanet.x - this.x
-    const dy = this.homePlanet.y - this.y
+    // Calculate current distance and angle relative to home planet
+    const dx = this.x - this.homePlanet.x
+    const dy = this.y - this.homePlanet.y
     const startDistance = Math.sqrt(dx * dx + dy * dy)
     const startAngle = Math.atan2(dy, dx)
 
-    // Set up spiral properties for return
+    // Set up spiral - start from current position relative to home
+    this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
     this.spiralRadius = startDistance
     this.spiralAngle = startAngle
 
@@ -106,14 +109,14 @@ export default class Ship {
         this.spiralAngle += 0.05
         
         // Calculate position on spiral
-        this.x = this.homePlanet.x + Math.cos(this.spiralAngle) * this.spiralRadius
-        this.y = this.homePlanet.y + Math.sin(this.spiralAngle) * this.spiralRadius
+        this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+        this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
         
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
       onComplete: () => {
-        // Back home - set angle for seamless orbit continuation
+        // Back home
         this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
         this.state = 'IDLE'
@@ -128,6 +131,7 @@ export default class Ship {
       this.angle += this.rotationSpeed
       this.updatePosition()
     }
+    // During SPIRALING state, position is updated by tween
   }
 
   updatePosition() {

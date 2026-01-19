@@ -25,6 +25,11 @@ export default class Ship {
     this.statusText.setDepth(3)
     
     this.shipRadius = 5
+    
+    // Spiral animation properties
+    this.spiralRadius = 0
+    this.spiralAngle = 0
+    
     this.updatePosition()
   }
 
@@ -35,25 +40,36 @@ export default class Ship {
     this.statusText.setText('TRAVELING')
     this.targetPlanet = targetPlanet
 
-    // Calculate travel path
-    const startX = this.x
-    const startY = this.y
-    const endX = targetPlanet.x + Math.cos(this.angle) * targetPlanet.coreRadius
-    const endY = targetPlanet.y + Math.sin(this.angle) * targetPlanet.coreRadius
+    // Calculate initial distance and angle to target planet
+    const dx = targetPlanet.x - this.x
+    const dy = targetPlanet.y - this.y
+    const startDistance = Math.sqrt(dx * dx + dy * dy)
+    const startAngle = Math.atan2(dy, dx)
 
-    // Tween to target planet
+    // Set up spiral properties
+    this.spiralRadius = startDistance
+    this.spiralAngle = startAngle
+    
+    // Tween the spiral radius down to the orbit radius
     this.scene.tweens.add({
       targets: this,
-      x: endX,
-      y: endY,
+      spiralRadius: targetPlanet.coreRadius,
       duration: 1500,
       ease: 'Power2',
       onUpdate: () => {
+        // Rotate while spiraling in
+        this.spiralAngle += 0.05
+        
+        // Calculate position on spiral
+        this.x = targetPlanet.x + Math.cos(this.spiralAngle) * this.spiralRadius
+        this.y = targetPlanet.y + Math.sin(this.spiralAngle) * this.spiralRadius
+        
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
       onComplete: () => {
-        // Arrived at target planet
+        // Arrived at target planet - set angle for seamless orbit continuation
+        this.angle = this.spiralAngle
         this.currentPlanet = targetPlanet
         this.state = 'ORBITING'
         this.statusText.setText('ORBITING')
@@ -70,22 +86,35 @@ export default class Ship {
     this.state = 'TRAVELING_FROM'
     this.statusText.setText('RETURNING')
 
-    // Calculate return path
-    const endX = this.homePlanet.x + Math.cos(this.angle) * this.homePlanet.coreRadius
-    const endY = this.homePlanet.y + Math.sin(this.angle) * this.homePlanet.coreRadius
+    // Calculate distance to home
+    const dx = this.homePlanet.x - this.x
+    const dy = this.homePlanet.y - this.y
+    const startDistance = Math.sqrt(dx * dx + dy * dy)
+    const startAngle = Math.atan2(dy, dx)
+
+    // Set up spiral properties for return
+    this.spiralRadius = startDistance
+    this.spiralAngle = startAngle
 
     this.scene.tweens.add({
       targets: this,
-      x: endX,
-      y: endY,
+      spiralRadius: this.homePlanet.coreRadius,
       duration: 1500,
       ease: 'Power2',
       onUpdate: () => {
+        // Rotate while spiraling in
+        this.spiralAngle += 0.05
+        
+        // Calculate position on spiral
+        this.x = this.homePlanet.x + Math.cos(this.spiralAngle) * this.spiralRadius
+        this.y = this.homePlanet.y + Math.sin(this.spiralAngle) * this.spiralRadius
+        
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
       onComplete: () => {
-        // Back home
+        // Back home - set angle for seamless orbit continuation
+        this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
         this.state = 'IDLE'
         this.statusText.setText('IDLE')

@@ -47,6 +47,9 @@ export default class GameScene extends Phaser.Scene {
     this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
     this.uiCamera.setScroll(0, 0)
     
+    // Make UI camera ignore game objects
+    this.uiCamera.ignore([this.basePlanet.graphics, this.basePlanet.hitZone, this.ship.graphics])
+    
     // Mobile zoom buttons
     this.createZoomButtons()
   }

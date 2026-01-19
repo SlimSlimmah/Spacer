@@ -1,5 +1,6 @@
 // src/main.js
-import Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.esm.js'
+import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.esm.js'
+
 
 import GameScene from './scenes/GameScene.js'
 

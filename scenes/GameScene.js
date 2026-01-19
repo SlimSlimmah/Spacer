@@ -13,10 +13,18 @@ export default class GameScene extends Phaser.Scene {
 
     // First planet (blue) with HOME PLANET nameplate
     this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
-    this.ship = new Ship(this, this.basePlanet, this.basePlanet.coreRadius, 'IDLE')
+    this.ship = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
 
     // Second planet (gray) with PLANET1 nameplate
     this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1')
+    
+    // Set up planet click handler for travel
+    this.grayPlanet.setOnClick((planet) => {
+      // Send idle ship to this planet
+      if (this.ship.state === 'IDLE') {
+        this.ship.travelTo(planet)
+      }
+    })
 
     // Camera pan setup
     this.isPanning = false

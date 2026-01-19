@@ -15,6 +15,12 @@ export default class BasePlanet {
 
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)
+	
+	this.noiseOffsets = []
+	this.noiseFrequency = 6
+	for (let i = 0; i < this.segments; i++) {
+  this.noiseOffsets.push(Math.random() * Math.PI * 2)
+}
 
     this.hitZone = scene.add.circle(x, y, this.outerRadius)
     this.hitZone.setInteractive({ useHandCursor: true })
@@ -26,10 +32,16 @@ export default class BasePlanet {
     this.draw()
   }
 
-  triggerWave() {
-    this.waveStrength = 12
-    this.wavePhase = 0
+triggerWave() {
+  this.waveStrength = 14
+  this.wavePhase = 0
+  this.noiseFrequency = Phaser.Math.Between(4, 9)
+
+  for (let i = 0; i < this.noiseOffsets.length; i++) {
+    this.noiseOffsets[i] = Math.random() * Math.PI * 2
   }
+}
+
 
   update() {
     if (this.waveStrength > 0.1) {
@@ -50,9 +62,13 @@ export default class BasePlanet {
       const t = i / this.segments
       const angle = t * Math.PI * 2
 
-      const noise =
-        Math.sin(angle * 6 + this.wavePhase) *
-        this.waveStrength
+const noise =
+  Math.sin(
+    angle * this.noiseFrequency +
+    this.wavePhase +
+    this.noiseOffsets[i]
+  ) * this.waveStrength
+
 
       const radius =
         (this.innerRadius + this.outerRadius) / 2 + noise

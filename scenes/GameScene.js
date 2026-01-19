@@ -11,6 +11,9 @@ export default class GameScene extends Phaser.Scene {
     const cx = this.scale.width / 2
     const cy = this.scale.height / 2
 
+    // Detect if mobile
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
     // First planet (blue) with HOME PLANET nameplate
     this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
     this.ship = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
@@ -38,7 +41,7 @@ export default class GameScene extends Phaser.Scene {
     })
 
     this.input.on('pointermove', (pointer) => {
-      if (this.isPanning && !this.isPinching) {
+      if (this.isPanning) {
         this.cameras.main.scrollX = this.panStartX - pointer.x
         this.cameras.main.scrollY = this.panStartY - pointer.y
       }
@@ -54,9 +57,6 @@ export default class GameScene extends Phaser.Scene {
       const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
       this.cameras.main.setZoom(newZoom)
     })
-
-    // Pinch zoom setup
-    this.setupPinchZoom()
 
     // Create UI camera for fixed elements
     this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
@@ -78,48 +78,6 @@ export default class GameScene extends Phaser.Scene {
     this.createZoomButtons()
   }
 
-  setupPinchZoom() {
-    this.isPinching = false
-    this.pinchDistance = 0
-
-    // Listen to native touch events for pinch detection
-    this.game.canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        this.isPinching = true
-        this.isPanning = false
-        const dx = e.touches[0].clientX - e.touches[1].clientX
-        const dy = e.touches[0].clientY - e.touches[1].clientY
-        this.pinchDistance = Math.sqrt(dx * dx + dy * dy)
-      }
-    })
-
-    this.game.canvas.addEventListener('touchmove', (e) => {
-      if (this.isPinching && e.touches.length === 2) {
-        e.preventDefault()
-        
-        const dx = e.touches[0].clientX - e.touches[1].clientX
-        const dy = e.touches[0].clientY - e.touches[1].clientY
-        const newDistance = Math.sqrt(dx * dx + dy * dy)
-        
-        if (this.pinchDistance > 0) {
-          const scale = newDistance / this.pinchDistance
-          const currentZoom = this.cameras.main.zoom
-          const newZoom = Phaser.Math.Clamp(currentZoom * scale, 0.5, 3)
-          this.cameras.main.setZoom(newZoom)
-        }
-        
-        this.pinchDistance = newDistance
-      }
-    }, { passive: false })
-
-    this.game.canvas.addEventListener('touchend', (e) => {
-      if (e.touches.length < 2) {
-        this.isPinching = false
-        this.pinchDistance = 0
-      }
-    })
-  }
-
   createZoomButtons() {
     const buttonStyle = {
       fontSize: '32px',
@@ -131,15 +89,30 @@ export default class GameScene extends Phaser.Scene {
       align: 'center'
     }
 
-    this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
+    // Position buttons differently for mobile vs desktop
+    if (this.isMobile) {
+      // Mobile: center top, side by side
+      this.zoomOutBtn = this.add.text(this.scale.width / 2 - 60, 20, '-', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
 
-    this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '-', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
+      this.zoomInBtn = this.add.text(this.scale.width / 2 + 60, 20, '+', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    } else {
+      // Desktop: top right, stacked vertically
+      this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+
+      this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '-', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
 
     // Make buttons only visible to UI camera
     this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])

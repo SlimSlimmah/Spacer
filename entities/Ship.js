@@ -6,9 +6,11 @@ export default class Ship {
     this.homePlanet = planet
     this.currentPlanet = planet
     this.orbitRadius = radius
-    this.angle = 0
+    this.angle = Math.random() * Math.PI * 2 // Random starting position
     this.rotationSpeed = 0.02
-    this.state = 'IDLE' // IDLE, SPIRALING, ORBITING
+    this.state = 'IDLE' // IDLE, SPIRALING, ORBITING, MINING
+    this.assignedPlanet = null // Planet this ship is assigned to mine
+    this.miningProgress = 0
 
     // Visual representation
     this.graphics = scene.add.graphics()
@@ -23,6 +25,13 @@ export default class Ship {
     })
     this.statusText.setOrigin(0.5)
     this.statusText.setDepth(3)
+
+    // Progress bar (hidden initially)
+    this.progressBarBg = scene.add.graphics()
+    this.progressBarBg.setDepth(3)
+    this.progressBarFill = scene.add.graphics()
+    this.progressBarFill.setDepth(3)
+    this.progressBarVisible = false
     
     this.shipRadius = 5
     
@@ -35,11 +44,12 @@ export default class Ship {
   }
 
   travelTo(targetPlanet) {
-    if (this.state !== 'IDLE') return
+    if (this.state !== 'IDLE' && this.state !== 'ORBITING') return
 
     this.state = 'SPIRALING'
     this.statusText.setText('TRAVELING')
-    this.targetPlanet = targetPlanet
+    this.assignedPlanet = targetPlanet
+    this.hideProgressBar()
 
     // Calculate current distance and angle relative to target planet
     const dx = this.x - targetPlanet.x
@@ -73,13 +83,56 @@ export default class Ship {
         // Arrived at target planet
         this.angle = this.spiralAngle
         this.currentPlanet = targetPlanet
-        this.state = 'ORBITING'
-        this.statusText.setText('ORBITING')
+        
+        // Check if this is the home planet or mining planet
+        if (targetPlanet === this.homePlanet) {
+          // Orbit once at home, then return to mining
+          this.state = 'ORBITING'
+          this.statusText.setText('ORBITING')
+          const startAngle = this.angle
+          
+          // Wait for one full orbit
+          this.orbitCheckInterval = this.scene.time.addEvent({
+            delay: 100,
+            callback: () => {
+              const angleDiff = Math.abs(this.angle - startAngle)
+              // Check if completed roughly one orbit (2*PI radians)
+              if (angleDiff > Math.PI * 2 - 0.2) {
+                this.orbitCheckInterval.remove()
+                // Return to mining planet
+                if (this.assignedPlanet) {
+                  this.travelTo(this.assignedPlanet)
+                }
+              }
+            },
+            loop: true
+          })
+        } else {
+          // Start mining
+          this.startMining()
+        }
+      }
+    })
+  }
 
-        // Orbit for 3 seconds then return
-        this.scene.time.delayedCall(3000, () => {
-          this.returnHome()
-        })
+  startMining() {
+    this.state = 'MINING'
+    this.statusText.setText('MINING')
+    this.miningProgress = 0
+    this.showProgressBar()
+
+    // Mine for 3 seconds
+    this.scene.tweens.add({
+      targets: this,
+      miningProgress: 100,
+      duration: 3000,
+      ease: 'Linear',
+      onUpdate: () => {
+        this.updateProgressBar()
+      },
+      onComplete: () => {
+        this.hideProgressBar()
+        this.returnHome()
       }
     })
   }
@@ -116,13 +169,42 @@ export default class Ship {
         this.draw()
       },
       onComplete: () => {
-        // Back home
+        // Back home - orbit once then return to mining
         this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
-        this.state = 'IDLE'
-        this.statusText.setText('IDLE')
+        this.travelTo(this.homePlanet) // This will trigger the orbit logic
       }
     })
+  }
+
+  showProgressBar() {
+    this.progressBarVisible = true
+    this.updateProgressBar()
+  }
+
+  hideProgressBar() {
+    this.progressBarVisible = false
+    this.progressBarBg.clear()
+    this.progressBarFill.clear()
+  }
+
+  updateProgressBar() {
+    if (!this.progressBarVisible) return
+
+    const barWidth = 40
+    const barHeight = 4
+    const barX = this.x - barWidth / 2
+    const barY = this.y - 25
+
+    // Background
+    this.progressBarBg.clear()
+    this.progressBarBg.fillStyle(0x333333, 1)
+    this.progressBarBg.fillRect(barX, barY, barWidth, barHeight)
+
+    // Fill
+    this.progressBarFill.clear()
+    this.progressBarFill.fillStyle(0x00ff00, 1)
+    this.progressBarFill.fillRect(barX, barY, (barWidth * this.miningProgress) / 100, barHeight)
   }
 
   update() {
@@ -130,8 +212,12 @@ export default class Ship {
       // Only rotate when idle or orbiting
       this.angle += this.rotationSpeed
       this.updatePosition()
+    } else if (this.state === 'MINING') {
+      // Continue orbiting while mining
+      this.angle += this.rotationSpeed
+      this.updatePosition()
+      this.updateProgressBar()
     }
-    // During SPIRALING state, position is updated by tween
   }
 
   updatePosition() {
@@ -141,6 +227,10 @@ export default class Ship {
     // Position text above the ship
     this.statusText.setPosition(this.x, this.y - 15)
     
+    if (this.progressBarVisible) {
+      this.updateProgressBar()
+    }
+    
     this.draw()
   }
 
@@ -148,5 +238,15 @@ export default class Ship {
     this.graphics.clear()
     this.graphics.fillStyle(0xffaa00, 1)
     this.graphics.fillCircle(this.x, this.y, this.shipRadius)
+  }
+
+  destroy() {
+    this.graphics.destroy()
+    this.statusText.destroy()
+    this.progressBarBg.destroy()
+    this.progressBarFill.destroy()
+    if (this.orbitCheckInterval) {
+      this.orbitCheckInterval.remove()
+    }
   }
 }

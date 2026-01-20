@@ -137,45 +137,65 @@ export default class Ship {
     })
   }
 
-  returnHome() {
-    this.state = 'SPIRALING'
-    this.statusText.setText('RETURNING')
+returnHome() {
+  this.state = 'SPIRALING'
+  this.statusText.setText('RETURNING')
 
-    // Calculate current distance and angle relative to home planet
-    const dx = this.x - this.homePlanet.x
-    const dy = this.y - this.homePlanet.y
-    const startDistance = Math.sqrt(dx * dx + dy * dy)
-    const startAngle = Math.atan2(dy, dx)
+  // Calculate current distance and angle relative to home planet
+  const dx = this.x - this.homePlanet.x
+  const dy = this.y - this.homePlanet.y
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+  const startAngle = Math.atan2(dy, dx)
 
-    // Set up spiral - start from current position relative to home
-    this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
-    this.spiralRadius = startDistance
-    this.spiralAngle = startAngle
+  // Set up spiral - start from current position relative to home
+  this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
+  this.spiralRadius = startDistance
+  this.spiralAngle = startAngle
 
-    this.scene.tweens.add({
-      targets: this,
-      spiralRadius: this.homePlanet.coreRadius,
-      duration: 1500,
-      ease: 'Power2',
-      onUpdate: () => {
-        // Rotate while spiraling in
-        this.spiralAngle += 0.05
-        
-        // Calculate position on spiral
-        this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
-        this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
-        
-        this.statusText.setPosition(this.x, this.y - 15)
-        this.draw()
-      },
-      onComplete: () => {
-        // Back home - orbit once then return to mining
-        this.angle = this.spiralAngle
-        this.currentPlanet = this.homePlanet
-        this.travelTo(this.homePlanet) // This will trigger the orbit logic
-      }
-    })
-  }
+  this.scene.tweens.add({
+    targets: this,
+    spiralRadius: this.homePlanet.coreRadius,
+    duration: 1500,
+    ease: 'Power2',
+    onUpdate: () => {
+      // Rotate while spiraling in
+      this.spiralAngle += 0.05
+      
+      // Calculate position on spiral
+      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
+      
+      this.statusText.setPosition(this.x, this.y - 15)
+      this.draw()
+    },
+    onComplete: () => {
+      // Back home - set up orbit once then return to mining
+      this.angle = this.spiralAngle
+      this.currentPlanet = this.homePlanet
+      this.state = 'ORBITING'
+      this.statusText.setText('ORBITING')
+      
+      const startAngle = this.angle
+      
+      // Wait for one full orbit
+      this.orbitCheckInterval = this.scene.time.addEvent({
+        delay: 100,
+        callback: () => {
+          const angleDiff = Math.abs(this.angle - startAngle)
+          // Check if completed roughly one orbit (2*PI radians)
+          if (angleDiff > Math.PI * 2 - 0.2) {
+            this.orbitCheckInterval.remove()
+            // Return to mining planet
+            if (this.assignedPlanet) {
+              this.travelTo(this.assignedPlanet)
+            }
+          }
+        },
+        loop: true
+      })
+    }
+  })
+}
 
   showProgressBar() {
     this.progressBarVisible = true

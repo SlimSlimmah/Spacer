@@ -7,75 +7,72 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene')
   }
 
-  create() {
-    // Detect if mobile
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+create() {
+  // Detect if mobile
+  this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-    const cx = this.scale.width / 2
-    const cy = this.scale.height / 2
+  const cx = this.scale.width / 2
+  const cy = this.scale.height / 2
 
-    // First planet (blue) with HOME PLANET nameplate
-    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
-    
-    // Ships array
-    this.ships = []
-    this.addShip()
+  // First planet (blue) with HOME PLANET nameplate
+  this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
 
-    // Second planet (gray) with PLANET1 nameplate
-    this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1')
-    
-    // Set up planet click handler for travel
-    this.grayPlanet.setOnClick((planet) => {
-      // Send first idle ship to this planet
-      const idleShip = this.ships.find(ship => ship.state === 'IDLE')
-      if (idleShip) {
-        idleShip.travelTo(planet)
-      }
-    })
+  // Second planet (gray) with PLANET1 nameplate
+  this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1')
 
-    // Camera pan setup
+  // Create UI camera BEFORE creating ships
+  this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+  this.uiCamera.setScroll(0, 0)
+
+  // Ships array
+  this.ships = []
+  this.addShip()
+  
+  // Set up planet click handler for travel
+  this.grayPlanet.setOnClick((planet) => {
+    // Send first idle ship to this planet
+    const idleShip = this.ships.find(ship => ship.state === 'IDLE')
+    if (idleShip) {
+      idleShip.travelTo(planet)
+    }
+  })
+
+  // Camera pan setup
+  this.isPanning = false
+  this.panStartX = 0
+  this.panStartY = 0
+
+  this.input.on('pointerdown', (pointer) => {
+    this.isPanning = true
+    this.panStartX = pointer.x + this.cameras.main.scrollX
+    this.panStartY = pointer.y + this.cameras.main.scrollY
+  })
+
+  this.input.on('pointermove', (pointer) => {
+    if (this.isPanning) {
+      this.cameras.main.scrollX = this.panStartX - pointer.x
+      this.cameras.main.scrollY = this.panStartY - pointer.y
+    }
+  })
+
+  this.input.on('pointerup', () => {
     this.isPanning = false
-    this.panStartX = 0
-    this.panStartY = 0
+  })
 
-    this.input.on('pointerdown', (pointer) => {
-      this.isPanning = true
-      this.panStartX = pointer.x + this.cameras.main.scrollX
-      this.panStartY = pointer.y + this.cameras.main.scrollY
-    })
+  // Mouse wheel zoom
+  this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+    const zoomAmount = deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+  
+  // UI buttons
+  this.createZoomButtons()
+  this.createAddShipButton()
 
-    this.input.on('pointermove', (pointer) => {
-      if (this.isPanning) {
-        this.cameras.main.scrollX = this.panStartX - pointer.x
-        this.cameras.main.scrollY = this.panStartY - pointer.y
-      }
-    })
-
-    this.input.on('pointerup', () => {
-      this.isPanning = false
-    })
-
-    // Mouse wheel zoom
-    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-      const zoomAmount = deltaY > 0 ? -0.1 : 0.1
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-
-    // Create UI camera for fixed elements
-    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
-    this.uiCamera.setScroll(0, 0)
-    
-    // Make UI camera ignore game objects initially
-    this.updateUICameraIgnoreList()
-    
-    // UI buttons
-    this.createZoomButtons()
-    this.createAddShipButton()
-
-    // Handle window resize
-    this.scale.on('resize', this.handleResize, this)
-  }
+  // Handle window resize
+  this.scale.on('resize', this.handleResize, this)
+}
 
   addShip() {
     const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)

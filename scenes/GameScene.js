@@ -450,25 +450,25 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
 }
 
   addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
-    const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
-    this.planets.push(planet)
+  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
+  this.planets.push(planet)
 
-    // Set up planet click handler for travel
-    planet.setOnClick((clickedPlanet) => {
-      // Send first idle ship to this planet
-      const idleShip = this.ships.find(ship => ship.state === 'IDLE')
-      if (idleShip) {
-        idleShip.travelTo(clickedPlanet)
-      }
-    })
+  // Set up planet click handler for travel
+  planet.setOnClick((clickedPlanet) => {
+    // Send first idle ship to this planet
+    const idleShip = this.ships.find(ship => ship.state === 'IDLE')
+    if (idleShip) {
+      idleShip.travelTo(clickedPlanet)
+    }
+  })
 
-    // Set up planet hold handler to show popup
-    planet.setOnHold((heldPlanet) => {
-      this.planetPopup.show(heldPlanet, heldPlanet.x, heldPlanet.y)
-    })
+  // Set up planet hold handler to show popup at hold location
+  planet.setOnHold((heldPlanet, pointerX, pointerY) => {
+    this.planetPopup.show(heldPlanet, pointerX, pointerY)
+  })
 
-    this.updateUICameraIgnoreList()
-  }
+  this.updateUICameraIgnoreList()
+}
 
 scanForPlanet() {
   let x, y, coreRadius

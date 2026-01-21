@@ -1,6 +1,7 @@
 import * as Phaser from 'https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.esm.js'
 import BasePlanet from '../entities/BasePlanet.js'
 import Ship from '../entities/Ship.js'
+import PlanetPopup from '../ui/PlanetPopup.js'
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -27,6 +28,9 @@ export default class GameScene extends Phaser.Scene {
     // Ships array
     this.ships = []
     this.addShip()
+
+    // Create planet popup
+    this.planetPopup = new PlanetPopup(this)
 
     // Second planet (gray) with PLANET1 nameplate
     this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
@@ -82,14 +86,9 @@ export default class GameScene extends Phaser.Scene {
       }
     })
 
-    // Set up planet hold handler for recall
+    // Set up planet hold handler to show popup
     planet.setOnHold((heldPlanet) => {
-      // Recall all ships assigned to this planet
-      this.ships.forEach(ship => {
-        if (ship.assignedPlanet === heldPlanet) {
-          ship.recallToHome()
-        }
-      })
+      this.planetPopup.show(heldPlanet, heldPlanet.x, heldPlanet.y)
     })
 
     this.updateUICameraIgnoreList()

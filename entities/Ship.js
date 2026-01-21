@@ -43,6 +43,15 @@ export default class Ship {
     this.spiralCenter = { x: 0, y: 0 }
     this.spiralRadius = 0
     this.spiralAngle = 0
+
+    // Mining particles
+    this.miningParticles = []
+    this.miningParticleTimer = 0
+
+    // Trail particles for travel
+    this.trailGraphics = scene.add.graphics()
+    this.trailGraphics.setDepth(1)
+    this.trailPoints = []
     
     this.updatePosition()
   }
@@ -59,6 +68,7 @@ export default class Ship {
     this.statusText.setText('TRAVELING')
     this.assignedPlanet = targetPlanet
     this.hideProgressBar()
+    this.trailPoints = [] // Clear trail
 
     // Change ship color to match planet
     this.shipColor = targetPlanet.ringColor
@@ -88,6 +98,9 @@ export default class Ship {
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
         this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
         
+        // Add trail point
+        this.addTrailPoint(this.x, this.y)
+        
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
@@ -95,6 +108,7 @@ export default class Ship {
         // Arrived at target planet
         this.angle = this.spiralAngle
         this.currentPlanet = targetPlanet
+        this.trailPoints = [] // Clear trail on arrival
         
         // Check if this is the home planet or mining planet
         if (targetPlanet === this.homePlanet) {
@@ -127,11 +141,96 @@ export default class Ship {
     })
   }
 
+  addTrailPoint(x, y) {
+    this.trailPoints.push({ x, y, alpha: 1 })
+    
+    // Keep trail at reasonable length
+    if (this.trailPoints.length > 20) {
+      this.trailPoints.shift()
+    }
+  }
+
+  updateTrail() {
+    this.trailGraphics.clear()
+    
+    if (this.trailPoints.length < 2) return
+    
+    // Fade out older points
+    for (let i = 0; i < this.trailPoints.length; i++) {
+      this.trailPoints[i].alpha *= 0.95
+    }
+    
+    // Draw trail
+    for (let i = 1; i < this.trailPoints.length; i++) {
+      const prev = this.trailPoints[i - 1]
+      const curr = this.trailPoints[i]
+      
+      const alpha = curr.alpha * 0.6
+      this.trailGraphics.lineStyle(2, this.shipColor, alpha)
+      this.trailGraphics.lineBetween(prev.x, prev.y, curr.x, curr.y)
+    }
+    
+    // Remove fully faded points
+    this.trailPoints = this.trailPoints.filter(p => p.alpha > 0.05)
+  }
+
+  spawnMiningParticle() {
+    const particle = {
+      x: this.x + Phaser.Math.Between(-8, 8),
+      y: this.y + Phaser.Math.Between(-8, 8),
+      vx: Phaser.Math.FloatBetween(-0.5, 0.5),
+      vy: Phaser.Math.FloatBetween(-1.5, -0.5),
+      life: 1,
+      size: Phaser.Math.Between(1, 2)
+    }
+    this.miningParticles.push(particle)
+  }
+
+  updateMiningParticles() {
+    // Spawn new particles occasionally
+    this.miningParticleTimer++
+    if (this.miningParticleTimer > 5) {
+      this.spawnMiningParticle()
+      this.miningParticleTimer = 0
+    }
+    
+    // Update existing particles
+    for (let i = this.miningParticles.length - 1; i >= 0; i--) {
+      const p = this.miningParticles[i]
+      p.x += p.vx
+      p.y += p.vy
+      p.life -= 0.02
+      
+      if (p.life <= 0) {
+        this.miningParticles.splice(i, 1)
+      }
+    }
+  }
+
+  drawMiningParticles() {
+    this.graphics.clear()
+    
+    // Draw ship
+    this.graphics.fillStyle(this.shipColor, 1)
+    this.graphics.fillCircle(this.x, this.y, this.shipRadius)
+    
+    // Draw mining particles
+    if (this.state === 'MINING') {
+      for (const p of this.miningParticles) {
+        const alpha = p.life * 0.8
+        // Use planet's ring color for particles
+        this.graphics.fillStyle(this.currentPlanet.ringColor, alpha)
+        this.graphics.fillCircle(p.x, p.y, p.size)
+      }
+    }
+  }
+
   startMining() {
     this.state = 'MINING'
     this.statusText.setText('MINING')
     this.statusText.setVisible(true)
     this.miningProgress = 0
+    this.miningParticles = []
     this.showProgressBar()
 
     // Mine for 3 seconds
@@ -145,6 +244,7 @@ export default class Ship {
       },
       onComplete: () => {
         this.hideProgressBar()
+        this.miningParticles = [] // Clear particles
         this.returnHome()
       }
     })
@@ -152,7 +252,8 @@ export default class Ship {
 
   returnHome() {
     this.state = 'SPIRALING'
-    this.statusText.setVisible(false) // Hide RETURNING label
+    this.statusText.setVisible(false)
+    this.trailPoints = [] // Clear trail
 
     // Calculate current distance and angle relative to home planet
     const dx = this.x - this.homePlanet.x
@@ -178,6 +279,9 @@ export default class Ship {
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
         this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
         
+        // Add trail point
+        this.addTrailPoint(this.x, this.y)
+        
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
@@ -186,7 +290,8 @@ export default class Ship {
         this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
         this.state = 'ORBITING'
-        this.statusText.setVisible(false) // Hide ORBITING label
+        this.statusText.setVisible(false)
+        this.trailPoints = [] // Clear trail on arrival
         
         const startAngle = this.angle
         
@@ -221,9 +326,11 @@ export default class Ship {
     }
 
     this.state = 'SPIRALING'
-    this.statusText.setVisible(false) // Hide RECALLED label
+    this.statusText.setVisible(false)
     this.assignedPlanet = null
     this.hideProgressBar()
+    this.miningParticles = [] // Clear particles
+    this.trailPoints = [] // Clear trail
 
     // Change back to idle color (orange)
     this.shipColor = 0xffaa00
@@ -252,6 +359,9 @@ export default class Ship {
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
         this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
         
+        // Add trail point
+        this.addTrailPoint(this.x, this.y)
+        
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
@@ -262,6 +372,7 @@ export default class Ship {
         this.state = 'IDLE'
         this.statusText.setText('IDLE')
         this.statusText.setVisible(true)
+        this.trailPoints = [] // Clear trail on arrival
       }
     })
   }
@@ -306,6 +417,15 @@ export default class Ship {
       this.angle += this.rotationSpeed
       this.updatePosition()
       this.updateProgressBar()
+      this.updateMiningParticles()
+    } else if (this.state === 'SPIRALING') {
+      // Update trail during travel
+      this.updateTrail()
+    }
+    
+    // Always update trail fade
+    if (this.trailPoints.length > 0) {
+      this.updateTrail()
     }
   }
 
@@ -324,13 +444,12 @@ export default class Ship {
   }
 
   draw() {
-    this.graphics.clear()
-    this.graphics.fillStyle(this.shipColor, 1)
-    this.graphics.fillCircle(this.x, this.y, this.shipRadius)
+    this.drawMiningParticles()
   }
 
   destroy() {
     this.graphics.destroy()
+    this.trailGraphics.destroy()
     this.statusText.destroy()
     this.progressBarBg.destroy()
     this.progressBarFill.destroy()

@@ -104,40 +104,41 @@ export default class Ship {
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
-      onComplete: () => {
-        // Arrived at target planet
-        this.angle = this.spiralAngle
-        this.currentPlanet = targetPlanet
-        this.trailPoints = [] // Clear trail on arrival
-        
-        // Check if this is the home planet or mining planet
-        if (targetPlanet === this.homePlanet) {
-          // Orbit once at home, then return to mining (no label)
-          this.state = 'ORBITING'
-          this.statusText.setVisible(false)
-          const startAngle = this.angle
-          
-          // Wait for one full orbit
-          this.orbitCheckInterval = this.scene.time.addEvent({
-            delay: 100,
-            callback: () => {
-              const angleDiff = Math.abs(this.angle - startAngle)
-              // Check if completed roughly one orbit (2*PI radians)
-              if (angleDiff > Math.PI * 2 - 0.2) {
-                this.orbitCheckInterval.remove()
-                // Return to mining planet
-                if (this.assignedPlanet) {
-                  this.travelTo(this.assignedPlanet)
-                }
-              }
-            },
-            loop: true
-          })
-        } else {
-          // Start mining
-          this.startMining()
+onComplete: () => {
+  // Arrived at target planet
+  this.angle = this.spiralAngle
+  this.currentPlanet = targetPlanet
+  this.trailPoints = [] // Clear trail on arrival
+  this.updateTrail() // Clear trail graphics
+  
+  // Check if this is the home planet or mining planet
+  if (targetPlanet === this.homePlanet) {
+    // Orbit once at home, then return to mining (no label)
+    this.state = 'ORBITING'
+    this.statusText.setVisible(false)
+    const startAngle = this.angle
+    
+    // Wait for one full orbit
+    this.orbitCheckInterval = this.scene.time.addEvent({
+      delay: 100,
+      callback: () => {
+        const angleDiff = Math.abs(this.angle - startAngle)
+        // Check if completed roughly one orbit (2*PI radians)
+        if (angleDiff > Math.PI * 2 - 0.2) {
+          this.orbitCheckInterval.remove()
+          // Return to mining planet
+          if (this.assignedPlanet) {
+            this.travelTo(this.assignedPlanet)
+          }
         }
-      }
+      },
+      loop: true
+    })
+  } else {
+    // Start mining
+    this.startMining()
+  }
+}
     })
   }
 
@@ -225,30 +226,33 @@ export default class Ship {
     }
   }
 
-  startMining() {
-    this.state = 'MINING'
-    this.statusText.setText('MINING')
-    this.statusText.setVisible(true)
-    this.miningProgress = 0
-    this.miningParticles = []
-    this.showProgressBar()
+startMining() {
+  this.state = 'MINING'
+  this.statusText.setText('MINING')
+  this.statusText.setVisible(true)
+  this.miningProgress = 0
+  this.miningParticles = []
+  this.trailPoints = [] // Clear trail when starting mining
+  this.updateTrail() // Clear trail graphics
+  this.showProgressBar()
 
-    // Mine for 3 seconds
-    this.scene.tweens.add({
-      targets: this,
-      miningProgress: 100,
-      duration: 3000,
-      ease: 'Linear',
-      onUpdate: () => {
-        this.updateProgressBar()
-      },
-      onComplete: () => {
-        this.hideProgressBar()
-        this.miningParticles = [] // Clear particles
-        this.returnHome()
-      }
-    })
-  }
+  // Mine for 3 seconds
+  this.scene.tweens.add({
+    targets: this,
+    miningProgress: 100,
+    duration: 3000,
+    ease: 'Linear',
+    onUpdate: () => {
+      this.updateProgressBar()
+    },
+    onComplete: () => {
+      this.hideProgressBar()
+      this.miningParticles = [] // Clear particles
+      this.returnHome()
+    }
+  })
+}
+
 
   returnHome() {
     this.state = 'SPIRALING'
@@ -285,33 +289,34 @@ export default class Ship {
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
-      onComplete: () => {
-        // Back home - set up orbit once then return to mining
-        this.angle = this.spiralAngle
-        this.currentPlanet = this.homePlanet
-        this.state = 'ORBITING'
-        this.statusText.setVisible(false)
-        this.trailPoints = [] // Clear trail on arrival
-        
-        const startAngle = this.angle
-        
-        // Wait for one full orbit
-        this.orbitCheckInterval = this.scene.time.addEvent({
-          delay: 100,
-          callback: () => {
-            const angleDiff = Math.abs(this.angle - startAngle)
-            // Check if completed roughly one orbit (2*PI radians)
-            if (angleDiff > Math.PI * 2 - 0.2) {
-              this.orbitCheckInterval.remove()
-              // Return to mining planet
-              if (this.assignedPlanet) {
-                this.travelTo(this.assignedPlanet)
-              }
-            }
-          },
-          loop: true
-        })
+onComplete: () => {
+  // Back home - set up orbit once then return to mining
+  this.angle = this.spiralAngle
+  this.currentPlanet = this.homePlanet
+  this.state = 'ORBITING'
+  this.statusText.setVisible(false)
+  this.trailPoints = [] // Clear trail on arrival
+  this.updateTrail() // Clear trail graphics
+  
+  const startAngle = this.angle
+  
+  // Wait for one full orbit
+  this.orbitCheckInterval = this.scene.time.addEvent({
+    delay: 100,
+    callback: () => {
+      const angleDiff = Math.abs(this.angle - startAngle)
+      // Check if completed roughly one orbit (2*PI radians)
+      if (angleDiff > Math.PI * 2 - 0.2) {
+        this.orbitCheckInterval.remove()
+        // Return to mining planet
+        if (this.assignedPlanet) {
+          this.travelTo(this.assignedPlanet)
+        }
       }
+    },
+    loop: true
+  })
+}
     })
   }
 
@@ -365,15 +370,16 @@ export default class Ship {
         this.statusText.setPosition(this.x, this.y - 15)
         this.draw()
       },
-      onComplete: () => {
-        // Back home and IDLE
-        this.angle = this.spiralAngle
-        this.currentPlanet = this.homePlanet
-        this.state = 'IDLE'
-        this.statusText.setText('IDLE')
-        this.statusText.setVisible(true)
-        this.trailPoints = [] // Clear trail on arrival
-      }
+onComplete: () => {
+  // Back home and IDLE
+  this.angle = this.spiralAngle
+  this.currentPlanet = this.homePlanet
+  this.state = 'IDLE'
+  this.statusText.setText('IDLE')
+  this.statusText.setVisible(true)
+  this.trailPoints = [] // Clear trail on arrival
+  this.updateTrail() // Clear trail graphics
+}
     })
   }
 
@@ -407,27 +413,22 @@ export default class Ship {
     this.progressBarFill.fillRect(barX, barY, (barWidth * this.miningProgress) / 100, barHeight)
   }
 
-  update() {
-    if (this.state === 'IDLE' || this.state === 'ORBITING') {
-      // Only rotate when idle or orbiting
-      this.angle += this.rotationSpeed
-      this.updatePosition()
-    } else if (this.state === 'MINING') {
-      // Continue orbiting while mining
-      this.angle += this.rotationSpeed
-      this.updatePosition()
-      this.updateProgressBar()
-      this.updateMiningParticles()
-    } else if (this.state === 'SPIRALING') {
-      // Update trail during travel
-      this.updateTrail()
-    }
-    
-    // Always update trail fade
-    if (this.trailPoints.length > 0) {
-      this.updateTrail()
-    }
+update() {
+  if (this.state === 'IDLE' || this.state === 'ORBITING') {
+    // Only rotate when idle or orbiting
+    this.angle += this.rotationSpeed
+    this.updatePosition()
+  } else if (this.state === 'MINING') {
+    // Continue orbiting while mining
+    this.angle += this.rotationSpeed
+    this.updatePosition()
+    this.updateProgressBar()
+    this.updateMiningParticles()
+  } else if (this.state === 'SPIRALING') {
+    // Update trail during travel only
+    this.updateTrail()
   }
+}
 
   updatePosition() {
     this.x = this.currentPlanet.x + Math.cos(this.angle) * this.currentPlanet.coreRadius

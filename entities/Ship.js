@@ -197,6 +197,57 @@ returnHome() {
   })
 }
 
+// Add this method to the Ship class
+recallToHome() {
+  if (this.state === 'SPIRALING') return // Already traveling
+
+  this.state = 'SPIRALING'
+  this.statusText.setText('RECALLED')
+  this.assignedPlanet = null // Clear assignment
+  this.hideProgressBar()
+
+  // Stop any orbit checking
+  if (this.orbitCheckInterval) {
+    this.orbitCheckInterval.remove()
+  }
+
+  // Calculate current distance and angle relative to home planet
+  const dx = this.x - this.homePlanet.x
+  const dy = this.y - this.homePlanet.y
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+  const startAngle = Math.atan2(dy, dx)
+
+  // Set up spiral - start from current position relative to home
+  this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
+  this.spiralRadius = startDistance
+  this.spiralAngle = startAngle
+
+  this.scene.tweens.add({
+    targets: this,
+    spiralRadius: this.homePlanet.coreRadius,
+    duration: 1500,
+    ease: 'Power2',
+    onUpdate: () => {
+      // Rotate while spiraling in
+      this.spiralAngle += 0.05
+      
+      // Calculate position on spiral
+      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
+      
+      this.statusText.setPosition(this.x, this.y - 15)
+      this.draw()
+    },
+    onComplete: () => {
+      // Back home and IDLE
+      this.angle = this.spiralAngle
+      this.currentPlanet = this.homePlanet
+      this.state = 'IDLE'
+      this.statusText.setText('IDLE')
+    }
+  })
+}
+
   showProgressBar() {
     this.progressBarVisible = true
     this.updateProgressBar()

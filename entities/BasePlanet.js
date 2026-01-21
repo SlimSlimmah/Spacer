@@ -32,7 +32,7 @@ class RingLayer {
 }
 
 export default class BasePlanet {
-  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '') {
+  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70) {
     this.scene = scene
     this.x = x
     this.y = y
@@ -40,13 +40,14 @@ export default class BasePlanet {
     this.ringColor = ringColor
     this.name = name
     this.onClickCallback = null
+    this.onHoldCallback = null
     
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)
     this.segments = 72
 
-    // Core (static)
-    this.coreRadius = 70
+    // Core (configurable size)
+    this.coreRadius = coreRadius
 
     // Only 2 reactive rings, positioned at coreRadius
     this.rings = [
@@ -54,12 +55,45 @@ export default class BasePlanet {
       new RingLayer(this.coreRadius, this.segments)
     ]
 
-    this.hitZone = scene.add.circle(x, y, 120)
+    this.hitZone = scene.add.circle(x, y, coreRadius + 50)
     this.hitZone.setInteractive({ useHandCursor: true })
+    
+    // Hold detection
+    this.holdStartTime = 0
+    this.isHolding = false
+    
     this.hitZone.on('pointerdown', () => {
+      this.holdStartTime = Date.now()
+      this.isHolding = true
       this.triggerWave()
-      if (this.onClickCallback) {
-        this.onClickCallback(this)
+      
+      // Check for hold every 100ms
+      this.holdCheckInterval = this.scene.time.addEvent({
+        delay: 100,
+        callback: () => {
+          if (this.isHolding) {
+            const holdDuration = Date.now() - this.holdStartTime
+            if (holdDuration >= 500 && this.onHoldCallback) {
+              this.onHoldCallback(this)
+              this.isHolding = false
+              this.holdCheckInterval.remove()
+            }
+          }
+        },
+        loop: true
+      })
+    })
+    
+    this.hitZone.on('pointerup', () => {
+      if (this.isHolding) {
+        const holdDuration = Date.now() - this.holdStartTime
+        if (holdDuration < 500 && this.onClickCallback) {
+          this.onClickCallback(this)
+        }
+      }
+      this.isHolding = false
+      if (this.holdCheckInterval) {
+        this.holdCheckInterval.remove()
       }
     })
 
@@ -80,6 +114,10 @@ export default class BasePlanet {
 
   setOnClick(callback) {
     this.onClickCallback = callback
+  }
+
+  setOnHold(callback) {
+    this.onHoldCallback = callback
   }
 
   triggerWave() {

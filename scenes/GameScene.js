@@ -171,40 +171,199 @@ class PlanetPopup {
   }
 }
 
+// ResearchPanel class
+class ResearchPanel {
+  constructor(scene) {
+    this.scene = scene
+    this.isVisible = false
+
+    // Create panel container
+    this.container = scene.add.container(0, 0)
+    this.container.setDepth(250)
+    this.container.setVisible(false)
+
+    const panelWidth = 400
+    const panelHeight = 300
+
+    // Background
+    this.bg = scene.add.graphics()
+    this.bg.fillStyle(0x0a0f1a, 0.98)
+    this.bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.bg.lineStyle(3, 0x66ccff, 1)
+    this.bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.container.add(this.bg)
+
+    // Title
+    this.titleText = scene.add.text(0, -panelHeight/2 + 30, 'RESEARCH', {
+      fontSize: '24px',
+      color: '#66ccff',
+      fontStyle: 'bold',
+      align: 'center'
+    })
+    this.titleText.setOrigin(0.5)
+    this.container.add(this.titleText)
+
+    // Close button (X)
+    this.closeBtn = scene.add.text(panelWidth/2 - 30, -panelHeight/2 + 30, '×', {
+      fontSize: '32px',
+      color: '#ff6666',
+      fontStyle: 'bold'
+    })
+    this.closeBtn.setOrigin(0.5)
+    this.closeBtn.setInteractive({ useHandCursor: true })
+    this.closeBtn.on('pointerup', () => this.hide())
+    this.container.add(this.closeBtn)
+
+    // Upgrade items
+    this.upgradeItems = []
+    this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection', -70)
+    this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters', 20)
+  }
+
+  createUpgradeItem(name, description, cost, id, yOffset) {
+    const item = {}
+    
+    // Container for this upgrade
+    const itemBg = this.scene.add.graphics()
+    itemBg.fillStyle(0x1a2a3a, 0.8)
+    itemBg.fillRoundedRect(-180, yOffset, 360, 70, 8)
+    this.container.add(itemBg)
+
+    // Name
+    const nameText = this.scene.add.text(-170, yOffset + 10, name, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+    this.container.add(nameText)
+
+    // Description
+    const descText = this.scene.add.text(-170, yOffset + 32, description, {
+      fontSize: '14px',
+      color: '#aaaaaa'
+    })
+    this.container.add(descText)
+
+    // Level indicator (for multi-purchase upgrades)
+    const levelText = this.scene.add.text(-170, yOffset + 52, 'Level: 0', {
+      fontSize: '12px',
+      color: '#ffaa00'
+    })
+    this.container.add(levelText)
+
+    // Purchase button
+    const btnText = cost === 0 ? 'FREE' : `${cost} Credits`
+    const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
+      fontSize: '16px',
+      color: '#00ff00',
+      backgroundColor: '#2a4a2a',
+      padding: { x: 15, y: 8 }
+    })
+    purchaseBtn.setOrigin(0.5)
+    purchaseBtn.setInteractive({ useHandCursor: true })
+    purchaseBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.purchaseUpgrade(id)
+    })
+    this.container.add(purchaseBtn)
+
+    item.id = id
+    item.bg = itemBg
+    item.nameText = nameText
+    item.descText = descText
+    item.levelText = levelText
+    item.purchaseBtn = purchaseBtn
+    item.cost = cost
+
+    this.upgradeItems.push(item)
+  }
+
+  purchaseUpgrade(id) {
+    if (id === 'planetDetection') {
+      if (!this.scene.research.planetDetection) {
+        this.scene.research.planetDetection = true
+        this.scene.scanBtn.setVisible(true)
+        
+        // Update UI to show purchased
+        const item = this.upgradeItems.find(i => i.id === 'planetDetection')
+        item.purchaseBtn.setText('PURCHASED')
+        item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
+        item.purchaseBtn.disableInteractive()
+      }
+    } else if (id === 'thrusters') {
+      this.scene.research.thrustersLevel++
+      const level = this.scene.research.thrustersLevel
+      
+      // Apply speed boost to all ships
+      const speedMultiplier = 1 + (level * 0.1)
+      this.scene.ships.forEach(ship => {
+        ship.applySpeedMultiplier(speedMultiplier)
+      })
+      
+      // Update UI
+      const item = this.upgradeItems.find(i => i.id === 'thrusters')
+      item.levelText.setText(`Level: ${level}`)
+    }
+  }
+
+  show() {
+    this.isVisible = true
+    const cx = this.scene.cameras.main.scrollX + this.scene.scale.width / 2
+    const cy = this.scene.cameras.main.scrollY + this.scene.scale.height / 2
+    this.container.setPosition(cx, cy)
+    this.container.setVisible(true)
+  }
+
+  hide() {
+    this.isVisible = false
+    this.container.setVisible(false)
+  }
+}
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene')
   }
 
   create() {
-    // Detect if mobile
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  // Detect if mobile
+  this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-    const cx = this.scale.width / 2
-    const cy = this.scale.height / 2
+  const cx = this.scale.width / 2
+  const cy = this.scale.height / 2
 
-    // First planet (blue) with HOME PLANET nameplate
-    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
+  // Research state
+  this.research = {
+    planetDetection: false,
+    thrustersLevel: 0
+  }
 
-    // Planets array (excluding home planet)
-    this.planets = []
+  // First planet (blue) with HOME PLANET nameplate
+  this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
 
-    // Create UI camera BEFORE creating ships and popup
-    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
-    this.uiCamera.setScroll(0, 0)
+  // Planets array (excluding home planet)
+  this.planets = []
 
-    // Ships array
-    this.ships = []
-    this.addShip()
+  // Create UI camera BEFORE creating ships and popup
+  this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+  this.uiCamera.setScroll(0, 0)
 
-    // Create planet popup AFTER UI camera exists
-    this.planetPopup = new PlanetPopup(this)
-    
-    // CRITICAL: Make main camera ignore popup, only UI camera renders it
-    this.cameras.main.ignore([this.planetPopup.container])
+  // Ships array
+  this.ships = []
+  this.addShip()
 
-    // Second planet (gray) with PLANET1 nameplate
-    this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
+  // Create planet popup AFTER UI camera exists
+  this.planetPopup = new PlanetPopup(this)
+  
+  // CRITICAL: Make main camera ignore popup, only UI camera renders it
+  this.cameras.main.ignore([this.planetPopup.container])
+
+  // Create research panel
+  this.researchPanel = new ResearchPanel(this)
+  this.cameras.main.ignore([this.researchPanel.container])
+
+  // Second planet (gray) with PLANET1 nameplate
+  this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
 
     // Camera pan setup
     this.isPanning = false
@@ -236,13 +395,17 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
 })
     
     // UI buttons
-    this.createZoomButtons()
-    this.createAddShipButton()
-    this.createScanButton()
+  this.createZoomButtons()
+  this.createAddShipButton()
+  this.createScanButton() // Will be hidden by default
+  this.createResearchButton()
 
-    // Handle window resize
-    this.scale.on('resize', this.handleResize, this)
-  }
+  // Hide scan button until Planet Detection is researched
+  this.scanBtn.setVisible(false)
+
+  // Handle window resize
+  this.scale.on('resize', this.handleResize, this)
+}
 
   addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
     const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
@@ -326,11 +489,51 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
     this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
   }
 
-  addShip() {
-    const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
-    this.ships.push(newShip)
-    this.updateUICameraIgnoreList()
+createResearchButton() {
+  const fontSize = this.isMobile ? '16px' : '14px'
+  const mobileButtonRow3 = this.isMobile ? 200 : 170
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
   }
+
+  if (this.isMobile) {
+    this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.researchBtn = this.add.text(this.scale.width - 70, 280, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.researchBtn])
+
+  this.researchBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.researchPanel.show()
+  })
+}
+
+addShip() {
+  const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
+  
+  // Apply current thruster upgrades to new ship
+  if (this.research.thrustersLevel > 0) {
+    const speedMultiplier = 1 + (this.research.thrustersLevel * 0.1)
+    newShip.applySpeedMultiplier(speedMultiplier)
+  }
+  
+  this.ships.push(newShip)
+  this.updateUICameraIgnoreList()
+}
 
   updateUICameraIgnoreList() {
     const ignoreList = [
@@ -357,9 +560,10 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
     this.uiCamera.ignore(ignoreList)
   }
 
-  handleResize(gameSize) {
+handleResize(gameSize) {
   const mobileTopPadding = this.isMobile ? 60 : 20
   const mobileButtonRow2 = this.isMobile ? 130 : 100
+  const mobileButtonRow3 = this.isMobile ? 200 : 170
 
   // Reposition UI elements on resize
   if (this.zoomInBtn && this.zoomOutBtn) {
@@ -387,6 +591,16 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
       this.scanBtn.setPosition(gameSize.width - 70, 215)
     }
   }
+  
+    if (this.researchBtn) {
+    if (this.isMobile) {
+      this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
+    } else {
+      this.researchBtn.setPosition(gameSize.width - 70, 280)
+    }
+  }
+}
+  
 }
 
   createZoomButtons() {

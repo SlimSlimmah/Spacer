@@ -228,12 +228,12 @@ export default class GameScene extends Phaser.Scene {
       this.isPanning = false
     })
 
-    // Mouse wheel zoom
-    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-      const zoomAmount = deltaY > 0 ? -0.1 : 0.1
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
+// Mouse wheel zoom - update the range to 0.2 - 3
+this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+  const zoomAmount = deltaY > 0 ? -0.1 : 0.1
+  const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.2, 3)
+  this.cameras.main.setZoom(newZoom)
+})
     
     // UI buttons
     this.createZoomButtons()
@@ -358,153 +358,166 @@ export default class GameScene extends Phaser.Scene {
   }
 
   handleResize(gameSize) {
-    // Reposition UI elements on resize
-    if (this.zoomInBtn && this.zoomOutBtn) {
-      if (this.isMobile) {
-        this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, 30)
-        this.zoomInBtn.setPosition(gameSize.width / 2 + 70, 30)
-      } else {
-        this.zoomInBtn.setPosition(gameSize.width - 70, 20)
-        this.zoomOutBtn.setPosition(gameSize.width - 70, 85)
-      }
-    }
+  const mobileTopPadding = this.isMobile ? 60 : 20
+  const mobileButtonRow2 = this.isMobile ? 130 : 100
 
-    if (this.addShipBtn) {
-      if (this.isMobile) {
-        this.addShipBtn.setPosition(gameSize.width / 2 - 70, 100)
-      } else {
-        this.addShipBtn.setPosition(gameSize.width - 70, 150)
-      }
-    }
-
-    if (this.scanBtn) {
-      if (this.isMobile) {
-        this.scanBtn.setPosition(gameSize.width / 2 + 70, 100)
-      } else {
-        this.scanBtn.setPosition(gameSize.width - 70, 215)
-      }
+  // Reposition UI elements on resize
+  if (this.zoomInBtn && this.zoomOutBtn) {
+    if (this.isMobile) {
+      this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
+      this.zoomInBtn.setPosition(gameSize.width / 2 + 70, mobileTopPadding)
+    } else {
+      this.zoomInBtn.setPosition(gameSize.width - 70, 20)
+      this.zoomOutBtn.setPosition(gameSize.width - 70, 85)
     }
   }
+
+  if (this.addShipBtn) {
+    if (this.isMobile) {
+      this.addShipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
+    } else {
+      this.addShipBtn.setPosition(gameSize.width - 70, 150)
+    }
+  }
+
+  if (this.scanBtn) {
+    if (this.isMobile) {
+      this.scanBtn.setPosition(gameSize.width / 2 + 70, mobileButtonRow2)
+    } else {
+      this.scanBtn.setPosition(gameSize.width - 70, 215)
+    }
+  }
+}
 
   createZoomButtons() {
-    // Larger buttons for mobile
-    const buttonSize = this.isMobile ? 60 : 50
-    const fontSize = this.isMobile ? '40px' : '32px'
+  // Larger buttons for mobile
+  const buttonSize = this.isMobile ? 60 : 50
+  const fontSize = this.isMobile ? '40px' : '32px'
+  
+  // Safe area padding for mobile (notches, status bars, etc.)
+  const mobileTopPadding = this.isMobile ? 60 : 20
 
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#66ccff',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 15, y: 10 },
-      fixedWidth: buttonSize,
-      fixedHeight: buttonSize,
-      align: 'center'
-    }
-
-    // Position buttons differently for mobile vs desktop
-    if (this.isMobile) {
-      // Mobile: center top, side by side, slightly larger spacing
-      this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, 30, '−', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-
-      this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, 30, '+', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-    } else {
-      // Desktop: top right, stacked vertically
-      this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-
-      this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '−', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
-
-    // Make buttons only visible to UI camera
-    this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
-
-    // Use pointerup instead of pointerdown for better mobile response
-    this.zoomInBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-
-    this.zoomOutBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.5, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 15, y: 10 },
+    fixedWidth: buttonSize,
+    fixedHeight: buttonSize,
+    align: 'center'
   }
+
+  // Position buttons differently for mobile vs desktop
+  if (this.isMobile) {
+    // Mobile: center top with safe padding, side by side
+    this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0) // Extra insurance to keep it fixed
+
+    this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, mobileTopPadding, '+', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0) // Extra insurance to keep it fixed
+  } else {
+    // Desktop: top right, stacked vertically
+    this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+
+    this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '−', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  // Make buttons only visible to UI camera
+  this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
+
+  // Use pointerup instead of pointerdown for better mobile response
+  // Zoom range: 0.2 to 3 (was 0.5 to 3)
+  this.zoomInBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+
+  this.zoomOutBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.2, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+}
 
   createAddShipButton() {
-    const buttonSize = this.isMobile ? 60 : 50
-    const fontSize = this.isMobile ? '18px' : '14px'
+  const buttonSize = this.isMobile ? 60 : 50
+  const fontSize = this.isMobile ? '18px' : '14px'
+  const mobileButtonRow2 = this.isMobile ? 130 : 100
 
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#ffaa00',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 6 },
-      align: 'center'
-    }
-
-    if (this.isMobile) {
-      this.addShipBtn = this.add.text(this.scale.width / 2 - 70, 100, 'ADD SHIP', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-    } else {
-      this.addShipBtn = this.add.text(this.scale.width - 70, 150, 'ADD SHIP', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
-
-    this.cameras.main.ignore([this.addShipBtn])
-
-    this.addShipBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.addShip()
-    })
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#ffaa00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
   }
 
-  createScanButton() {
-    const fontSize = this.isMobile ? '18px' : '14px'
-
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#00ff00',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 6 },
-      align: 'center'
-    }
-
-    if (this.isMobile) {
-      this.scanBtn = this.add.text(this.scale.width / 2 + 70, 100, 'SCAN', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-    } else {
-      this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
-
-    this.cameras.main.ignore([this.scanBtn])
-
-    this.scanBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.scanForPlanet()
-    })
+  if (this.isMobile) {
+    this.addShipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'ADD SHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.addShipBtn = this.add.text(this.scale.width - 70, 150, 'ADD SHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
   }
+
+  this.cameras.main.ignore([this.addShipBtn])
+
+  this.addShipBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.addShip()
+  })
+}
+
+createScanButton() {
+  const fontSize = this.isMobile ? '18px' : '14px'
+  const mobileButtonRow2 = this.isMobile ? 130 : 100
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#00ff00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.scanBtn])
+
+  this.scanBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.scanForPlanet()
+  })
+}
 
   update() {
     this.basePlanet.update()

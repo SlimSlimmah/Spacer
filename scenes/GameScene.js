@@ -535,30 +535,31 @@ addShip() {
   this.updateUICameraIgnoreList()
 }
 
-  updateUICameraIgnoreList() {
-    const ignoreList = [
-      this.basePlanet.graphics, 
-      this.basePlanet.hitZone,
-      this.basePlanet.nameText
-    ]
+updateUICameraIgnoreList() {
+  const ignoreList = [
+    this.basePlanet.graphics, 
+    this.basePlanet.hitZone,
+    this.basePlanet.nameText
+  ]
 
-    // Add all planets to ignore list
-    this.planets.forEach(planet => {
-      ignoreList.push(planet.graphics)
-      ignoreList.push(planet.hitZone)
-      ignoreList.push(planet.nameText)
-    })
+  // Add all planets to ignore list
+  this.planets.forEach(planet => {
+    ignoreList.push(planet.graphics)
+    ignoreList.push(planet.hitZone)
+    ignoreList.push(planet.nameText)
+  })
 
-    // Add all ship graphics to ignore list
-    this.ships.forEach(ship => {
-      ignoreList.push(ship.graphics)
-      ignoreList.push(ship.statusText)
-      ignoreList.push(ship.progressBarBg)
-      ignoreList.push(ship.progressBarFill)
-    })
+  // Add all ship graphics to ignore list
+  this.ships.forEach(ship => {
+    ignoreList.push(ship.graphics)
+    ignoreList.push(ship.trailGraphics)
+    ignoreList.push(ship.statusText)
+    ignoreList.push(ship.progressBarBg)
+    ignoreList.push(ship.progressBarFill)
+  })
 
-    this.uiCamera.ignore(ignoreList)
-  }
+  this.uiCamera.ignore(ignoreList)
+}
 
 handleResize(gameSize) {
   const mobileTopPadding = this.isMobile ? 60 : 20

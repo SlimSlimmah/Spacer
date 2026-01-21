@@ -59,20 +59,33 @@ class PlanetPopup {
     this.plusBtn.setInteractive({ useHandCursor: true })
     this.container.add(this.plusBtn)
 
+    // Track if we're clicking inside buttons
+    this.clickedInsidePopup = false
+
     // Button handlers
+    this.minusBtn.on('pointerdown', () => {
+      this.clickedInsidePopup = true
+    })
+
     this.minusBtn.on('pointerup', (pointer) => {
       pointer.event.stopPropagation()
       this.onMinusClicked()
+      this.clickedInsidePopup = false
+    })
+
+    this.plusBtn.on('pointerdown', () => {
+      this.clickedInsidePopup = true
     })
 
     this.plusBtn.on('pointerup', (pointer) => {
       pointer.event.stopPropagation()
       this.onPlusClicked()
+      this.clickedInsidePopup = false
     })
 
-    // Click anywhere to close
+    // Click anywhere to close (but not if clicking buttons)
     this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-      if (this.isVisible) {
+      if (this.isVisible && !this.clickedInsidePopup) {
         // Check if click is outside popup
         const worldX = pointer.x + this.scene.cameras.main.scrollX
         const worldY = pointer.y + this.scene.cameras.main.scrollY
@@ -82,6 +95,7 @@ class PlanetPopup {
           this.hide()
         }
       }
+      this.clickedInsidePopup = false
     })
   }
 
@@ -119,7 +133,10 @@ class PlanetPopup {
 
     if (assignedShip) {
       assignedShip.recallToHome()
-      this.updateShipCount()
+      // Update immediately
+      this.scene.time.delayedCall(50, () => {
+        this.updateShipCount()
+      })
     }
   }
 
@@ -131,10 +148,8 @@ class PlanetPopup {
 
     if (idleShip) {
       idleShip.travelTo(this.planet)
-      this.updateShipCount()
-      
-      // Update count after a short delay to let the ship state change
-      this.scene.time.delayedCall(100, () => {
+      // Update immediately
+      this.scene.time.delayedCall(50, () => {
         this.updateShipCount()
       })
     }
@@ -169,6 +184,8 @@ export default class GameScene extends Phaser.Scene {
 
     // Create planet popup
     this.planetPopup = new PlanetPopup(this)
+	
+	this.cameras.main.ignore([this.planetPopup.container])
 
     // Second planet (gray) with PLANET1 nameplate
     this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)

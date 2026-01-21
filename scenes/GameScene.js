@@ -8,6 +8,7 @@ class PlanetPopup {
     this.scene = scene
     this.planet = null
     this.isVisible = false
+    this.justOpened = false
 
     // Create popup container
     this.container = scene.add.container(0, 0)
@@ -83,9 +84,9 @@ class PlanetPopup {
       this.clickedInsidePopup = false
     })
 
-    // Click anywhere to close (but not if clicking buttons)
+    // Click anywhere to close (but not if clicking buttons or just opened)
     this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-      if (this.isVisible && !this.clickedInsidePopup) {
+      if (this.isVisible && !this.clickedInsidePopup && !this.justOpened) {
         // Check if click is outside popup
         const worldX = pointer.x + this.scene.cameras.main.scrollX
         const worldY = pointer.y + this.scene.cameras.main.scrollY
@@ -102,9 +103,15 @@ class PlanetPopup {
   show(planet, x, y) {
     this.planet = planet
     this.isVisible = true
+    this.justOpened = true
     this.container.setPosition(x, y)
     this.container.setVisible(true)
     this.updateShipCount()
+
+    // Allow closing after a short delay
+    this.scene.time.delayedCall(100, () => {
+      this.justOpened = false
+    })
   }
 
   hide() {
@@ -174,7 +181,7 @@ export default class GameScene extends Phaser.Scene {
     // Planets array (excluding home planet)
     this.planets = []
 
-    // Create UI camera BEFORE creating ships
+    // Create UI camera BEFORE creating ships and popup
     this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
     this.uiCamera.setScroll(0, 0)
 
@@ -182,10 +189,11 @@ export default class GameScene extends Phaser.Scene {
     this.ships = []
     this.addShip()
 
-    // Create planet popup
+    // Create planet popup AFTER UI camera exists
     this.planetPopup = new PlanetPopup(this)
-	
-	this.cameras.main.ignore([this.planetPopup.container])
+    
+    // CRITICAL: Make main camera ignore popup, only UI camera renders it
+    this.cameras.main.ignore([this.planetPopup.container])
 
     // Second planet (gray) with PLANET1 nameplate
     this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)

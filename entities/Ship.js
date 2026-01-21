@@ -199,9 +199,10 @@ returnHome() {
 
 // Add this method to the Ship class
 recallToHome() {
-  if (this.state === 'SPIRALING' && this.assignedPlanet === null) return // Already recalling
-
-  // Stop any ongoing tweens or timers
+  // Stop ALL ongoing tweens for this ship
+  this.scene.tweens.killTweensOf(this)
+  
+  // Stop any orbit checking intervals
   if (this.orbitCheckInterval) {
     this.orbitCheckInterval.remove()
     this.orbitCheckInterval = null
@@ -240,7 +241,7 @@ recallToHome() {
       this.draw()
     },
     onComplete: () => {
-      // Back home and IDLE
+      // Back home and IDLE - no looping since assignedPlanet is null
       this.angle = this.spiralAngle
       this.currentPlanet = this.homePlanet
       this.state = 'IDLE'

@@ -199,17 +199,18 @@ returnHome() {
 
 // Add this method to the Ship class
 recallToHome() {
-  if (this.state === 'SPIRALING') return // Already traveling
+  if (this.state === 'SPIRALING' && this.assignedPlanet === null) return // Already recalling
+
+  // Stop any ongoing tweens or timers
+  if (this.orbitCheckInterval) {
+    this.orbitCheckInterval.remove()
+    this.orbitCheckInterval = null
+  }
 
   this.state = 'SPIRALING'
   this.statusText.setText('RECALLED')
-  this.assignedPlanet = null // Clear assignment
+  this.assignedPlanet = null // Clear assignment immediately
   this.hideProgressBar()
-
-  // Stop any orbit checking
-  if (this.orbitCheckInterval) {
-    this.orbitCheckInterval.remove()
-  }
 
   // Calculate current distance and angle relative to home planet
   const dx = this.x - this.homePlanet.x

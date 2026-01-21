@@ -59,43 +59,50 @@ export default class BasePlanet {
     this.hitZone.setInteractive({ useHandCursor: true })
     
     // Hold detection
-    this.holdStartTime = 0
-    this.isHolding = false
-    
-    this.hitZone.on('pointerdown', () => {
-      this.holdStartTime = Date.now()
-      this.isHolding = true
-      this.triggerWave()
-      
-      // Check for hold every 100ms
-      this.holdCheckInterval = this.scene.time.addEvent({
-        delay: 100,
-        callback: () => {
-          if (this.isHolding) {
-            const holdDuration = Date.now() - this.holdStartTime
-            if (holdDuration >= 500 && this.onHoldCallback) {
-              this.onHoldCallback(this)
-              this.isHolding = false
-              this.holdCheckInterval.remove()
-            }
-          }
-        },
-        loop: true
-      })
-    })
-    
-    this.hitZone.on('pointerup', () => {
+this.holdStartTime = 0
+this.isHolding = false
+this.holdPointerX = 0
+this.holdPointerY = 0
+
+this.hitZone.on('pointerdown', (pointer) => {
+  this.holdStartTime = Date.now()
+  this.isHolding = true
+  
+  // Store world coordinates of where user clicked
+  this.holdPointerX = pointer.worldX
+  this.holdPointerY = pointer.worldY
+  
+  this.triggerWave()
+  
+  // Check for hold every 100ms
+  this.holdCheckInterval = this.scene.time.addEvent({
+    delay: 100,
+    callback: () => {
       if (this.isHolding) {
         const holdDuration = Date.now() - this.holdStartTime
-        if (holdDuration < 500 && this.onClickCallback) {
-          this.onClickCallback(this)
+        if (holdDuration >= 500 && this.onHoldCallback) {
+          this.onHoldCallback(this, this.holdPointerX, this.holdPointerY)
+          this.isHolding = false
+          this.holdCheckInterval.remove()
         }
       }
-      this.isHolding = false
-      if (this.holdCheckInterval) {
-        this.holdCheckInterval.remove()
-      }
-    })
+    },
+    loop: true
+  })
+})
+
+this.hitZone.on('pointerup', () => {
+  if (this.isHolding) {
+    const holdDuration = Date.now() - this.holdStartTime
+    if (holdDuration < 500 && this.onClickCallback) {
+      this.onClickCallback(this)
+    }
+  }
+  this.isHolding = false
+  if (this.holdCheckInterval) {
+    this.holdCheckInterval.remove()
+  }
+})
 
     // Nameplate
     if (this.name) {

@@ -172,15 +172,18 @@ class PlanetPopup {
 }
 
 // ResearchPanel class
+// ResearchPanel class
 class ResearchPanel {
   constructor(scene) {
     this.scene = scene
     this.isVisible = false
+    this.justOpened = false
 
     // Create panel container
     this.container = scene.add.container(0, 0)
     this.container.setDepth(250)
     this.container.setVisible(false)
+    this.container.setScrollFactor(0) // Keep it fixed to screen
 
     const panelWidth = 400
     const panelHeight = 300
@@ -211,13 +214,42 @@ class ResearchPanel {
     })
     this.closeBtn.setOrigin(0.5)
     this.closeBtn.setInteractive({ useHandCursor: true })
-    this.closeBtn.on('pointerup', () => this.hide())
+    this.closeBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.hide()
+    })
     this.container.add(this.closeBtn)
 
     // Upgrade items
     this.upgradeItems = []
     this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection', -70)
     this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters', 20)
+
+    // Click anywhere to close (similar to planet popup)
+    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+      if (this.isVisible && !this.justOpened) {
+        // Use screen coordinates since panel has scrollFactor 0
+        const screenX = pointer.x
+        const screenY = pointer.y
+        
+        // Get panel bounds in screen space
+        const panelCenterX = this.scene.scale.width / 2
+        const panelCenterY = this.scene.scale.height / 2
+        const halfWidth = panelWidth / 2
+        const halfHeight = panelHeight / 2
+        
+        const bounds = new Phaser.Geom.Rectangle(
+          panelCenterX - halfWidth,
+          panelCenterY - halfHeight,
+          panelWidth,
+          panelHeight
+        )
+        
+        if (!Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)) {
+          this.hide()
+        }
+      }
+    })
   }
 
   createUpgradeItem(name, description, cost, id, yOffset) {
@@ -261,6 +293,9 @@ class ResearchPanel {
     })
     purchaseBtn.setOrigin(0.5)
     purchaseBtn.setInteractive({ useHandCursor: true })
+    purchaseBtn.on('pointerdown', (pointer) => {
+      pointer.event.stopPropagation()
+    })
     purchaseBtn.on('pointerup', (pointer) => {
       pointer.event.stopPropagation()
       this.purchaseUpgrade(id)
@@ -308,10 +343,18 @@ class ResearchPanel {
 
   show() {
     this.isVisible = true
-    const cx = this.scene.cameras.main.scrollX + this.scene.scale.width / 2
-    const cy = this.scene.cameras.main.scrollY + this.scene.scale.height / 2
-    this.container.setPosition(cx, cy)
+    this.justOpened = true
+    
+    // Center on screen (not world)
+    const centerX = this.scene.scale.width / 2
+    const centerY = this.scene.scale.height / 2
+    this.container.setPosition(centerX, centerY)
     this.container.setVisible(true)
+
+    // Allow closing after 200ms
+    this.scene.time.delayedCall(200, () => {
+      this.justOpened = false
+    })
   }
 
   hide() {
@@ -358,9 +401,8 @@ export default class GameScene extends Phaser.Scene {
   // CRITICAL: Make main camera ignore popup, only UI camera renders it
   this.cameras.main.ignore([this.planetPopup.container])
 
-  // Create research panel
-  this.researchPanel = new ResearchPanel(this)
-  this.cameras.main.ignore([this.researchPanel.container])
+// Create research panel
+this.researchPanel = new ResearchPanel(this)
 
   // Second planet (gray) with PLANET1 nameplate
   this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
@@ -428,66 +470,73 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
     this.updateUICameraIgnoreList()
   }
 
-  scanForPlanet() {
-    let x, y, coreRadius
-    let validPosition = false
-    let attempts = 0
-    const maxAttempts = 50
+scanForPlanet() {
+  let x, y, coreRadius
+  let validPosition = false
+  let attempts = 0
+  const maxAttempts = 50
 
-    // Keep trying to find a non-overlapping position
-    while (!validPosition && attempts < maxAttempts) {
-      // Random position around home planet
-      const angle = Math.random() * Math.PI * 2
-      const distance = Phaser.Math.Between(200, 400)
-      x = this.basePlanet.x + Math.cos(angle) * distance
-      y = this.basePlanet.y + Math.sin(angle) * distance
+  // Keep trying to find a non-overlapping position
+  while (!validPosition && attempts < maxAttempts) {
+    // Random position around home planet
+    const angle = Math.random() * Math.PI * 2
+    const distance = Phaser.Math.Between(200, 400)
+    x = this.basePlanet.x + Math.cos(angle) * distance
+    y = this.basePlanet.y + Math.sin(angle) * distance
 
-      // Random size
-      coreRadius = Phaser.Math.Between(50, 90)
+    // Random size
+    coreRadius = Phaser.Math.Between(50, 90)
 
-      // Check if this position overlaps with any existing planet
-      validPosition = true
-      const minDistance = coreRadius + 100 // Buffer space
+    // Check if this position overlaps with any existing planet
+    validPosition = true
+    const minDistance = coreRadius + 100 // Buffer space
 
-      // Check against home planet
-      const distToHome = Math.sqrt(
-        Math.pow(x - this.basePlanet.x, 2) + 
-        Math.pow(y - this.basePlanet.y, 2)
+    // Check against home planet
+    const distToHome = Math.sqrt(
+      Math.pow(x - this.basePlanet.x, 2) + 
+      Math.pow(y - this.basePlanet.y, 2)
+    )
+    if (distToHome < this.basePlanet.coreRadius + minDistance) {
+      validPosition = false
+    }
+
+    // Check against all other planets
+    for (const planet of this.planets) {
+      const dist = Math.sqrt(
+        Math.pow(x - planet.x, 2) + 
+        Math.pow(y - planet.y, 2)
       )
-      if (distToHome < this.basePlanet.coreRadius + minDistance) {
+      if (dist < planet.coreRadius + minDistance) {
         validPosition = false
+        break
       }
-
-      // Check against all other planets
-      for (const planet of this.planets) {
-        const dist = Math.sqrt(
-          Math.pow(x - planet.x, 2) + 
-          Math.pow(y - planet.y, 2)
-        )
-        if (dist < planet.coreRadius + minDistance) {
-          validPosition = false
-          break
-        }
-      }
-
-      attempts++
     }
 
-    if (!validPosition) {
-      console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
-      return
-    }
-
-    // Random colors
-    const coreColor = Phaser.Display.Color.RandomRGB().color
-    const ringColor = Phaser.Display.Color.RandomRGB().color
-
-    // Generate name
-    const planetNumber = this.planets.length + 1
-    const name = `PLANET${planetNumber}`
-
-    this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
+    attempts++
   }
+
+  if (!validPosition) {
+    console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
+    return
+  }
+
+  // Generate coordinated colors - same base color for both core and ring
+  const baseColor = Phaser.Display.Color.RandomRGB()
+  const coreColor = baseColor.color
+  
+  // Make ring color a brighter version of core color
+  const ringColor = Phaser.Display.Color.GetColor(
+    Math.min(255, baseColor.red + 40),
+    Math.min(255, baseColor.green + 40),
+    Math.min(255, baseColor.blue + 40)
+  )
+
+  // Generate name
+  const planetNumber = this.planets.length + 1
+  const name = `PLANET${planetNumber}`
+
+  this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
+}
 
 createResearchButton() {
   const fontSize = this.isMobile ? '16px' : '14px'

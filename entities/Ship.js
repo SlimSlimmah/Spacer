@@ -7,11 +7,14 @@ export default class Ship {
     this.currentPlanet = planet
     this.orbitRadius = radius
     this.angle = Math.random() * Math.PI * 2
+    this.baseRotationSpeed = 0.02
     this.rotationSpeed = 0.02
+    this.baseTravelDuration = 1500
+    this.travelDuration = 1500
     this.state = 'IDLE'
     this.assignedPlanet = null
     this.miningProgress = 0
-    this.shipColor = 0xffaa00 // Default orange for idle
+    this.shipColor = 0xffaa00
 
     // Visual representation
     this.graphics = scene.add.graphics()
@@ -44,6 +47,11 @@ export default class Ship {
     this.updatePosition()
   }
 
+  applySpeedMultiplier(multiplier) {
+    this.rotationSpeed = this.baseRotationSpeed * multiplier
+    this.travelDuration = this.baseTravelDuration / multiplier
+  }
+
   travelTo(targetPlanet) {
     if (this.state !== 'IDLE' && this.state !== 'ORBITING') return
 
@@ -70,11 +78,11 @@ export default class Ship {
     this.scene.tweens.add({
       targets: this,
       spiralRadius: targetPlanet.coreRadius,
-      duration: 1500,
+      duration: this.travelDuration,
       ease: 'Power2',
       onUpdate: () => {
         // Rotate while spiraling in
-        this.spiralAngle += 0.05
+        this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
         
         // Calculate position on spiral
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
@@ -90,9 +98,9 @@ export default class Ship {
         
         // Check if this is the home planet or mining planet
         if (targetPlanet === this.homePlanet) {
-          // Orbit once at home, then return to mining
+          // Orbit once at home, then return to mining (no label)
           this.state = 'ORBITING'
-          this.statusText.setText('ORBITING')
+          this.statusText.setVisible(false)
           const startAngle = this.angle
           
           // Wait for one full orbit
@@ -122,6 +130,7 @@ export default class Ship {
   startMining() {
     this.state = 'MINING'
     this.statusText.setText('MINING')
+    this.statusText.setVisible(true)
     this.miningProgress = 0
     this.showProgressBar()
 
@@ -143,7 +152,7 @@ export default class Ship {
 
   returnHome() {
     this.state = 'SPIRALING'
-    this.statusText.setText('RETURNING')
+    this.statusText.setVisible(false) // Hide RETURNING label
 
     // Calculate current distance and angle relative to home planet
     const dx = this.x - this.homePlanet.x
@@ -159,11 +168,11 @@ export default class Ship {
     this.scene.tweens.add({
       targets: this,
       spiralRadius: this.homePlanet.coreRadius,
-      duration: 1500,
+      duration: this.travelDuration,
       ease: 'Power2',
       onUpdate: () => {
         // Rotate while spiraling in
-        this.spiralAngle += 0.05
+        this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
         
         // Calculate position on spiral
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
@@ -177,7 +186,7 @@ export default class Ship {
         this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
         this.state = 'ORBITING'
-        this.statusText.setText('ORBITING')
+        this.statusText.setVisible(false) // Hide ORBITING label
         
         const startAngle = this.angle
         
@@ -212,8 +221,8 @@ export default class Ship {
     }
 
     this.state = 'SPIRALING'
-    this.statusText.setText('RECALLED')
-    this.assignedPlanet = null // Clear assignment immediately
+    this.statusText.setVisible(false) // Hide RECALLED label
+    this.assignedPlanet = null
     this.hideProgressBar()
 
     // Change back to idle color (orange)
@@ -233,11 +242,11 @@ export default class Ship {
     this.scene.tweens.add({
       targets: this,
       spiralRadius: this.homePlanet.coreRadius,
-      duration: 1500,
+      duration: this.travelDuration,
       ease: 'Power2',
       onUpdate: () => {
         // Rotate while spiraling in
-        this.spiralAngle += 0.05
+        this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
         
         // Calculate position on spiral
         this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
@@ -247,11 +256,12 @@ export default class Ship {
         this.draw()
       },
       onComplete: () => {
-        // Back home and IDLE - no looping since assignedPlanet is null
+        // Back home and IDLE
         this.angle = this.spiralAngle
         this.currentPlanet = this.homePlanet
         this.state = 'IDLE'
         this.statusText.setText('IDLE')
+        this.statusText.setVisible(true)
       }
     })
   }

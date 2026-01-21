@@ -601,7 +601,7 @@ handleResize(gameSize) {
   }
 }
   
-}
+
 
   createZoomButtons() {
   // Larger buttons for mobile

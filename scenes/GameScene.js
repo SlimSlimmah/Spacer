@@ -92,34 +92,65 @@ class PlanetPopup {
       })
     })
 
-    // Click anywhere to close (but not if clicking buttons or just opened)
-    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-      if (this.isVisible && !this.clickedInsidePopup && !this.justOpened) {
-        // Check if click is outside popup
-        const worldX = pointer.x + this.scene.cameras.main.scrollX
-        const worldY = pointer.y + this.scene.cameras.main.scrollY
-        const popupBounds = this.container.getBounds()
-        
-        if (!Phaser.Geom.Rectangle.Contains(popupBounds, worldX, worldY)) {
-          this.hide()
-        }
-      }
-    })
+    // Click anywhere to close
+this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+  if (this.isVisible && !this.clickedInsidePopup && !this.justOpened) {
+    let outsideClick = false
+    
+    if (this.scene.isMobile) {
+      // Mobile: check screen coordinates
+      const screenX = pointer.x
+      const screenY = pointer.y
+      const centerX = this.scene.scale.width / 2
+      const centerY = this.scene.scale.height / 2
+      
+      const bounds = new Phaser.Geom.Rectangle(
+        centerX - 75,
+        centerY - 60,
+        150,
+        120
+      )
+      
+      outsideClick = !Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)
+    } else {
+      // Desktop: check world coordinates
+      const worldX = pointer.x + this.scene.cameras.main.scrollX
+      const worldY = pointer.y + this.scene.cameras.main.scrollY
+      const popupBounds = this.container.getBounds()
+      
+      outsideClick = !Phaser.Geom.Rectangle.Contains(popupBounds, worldX, worldY)
+    }
+    
+    if (outsideClick) {
+      this.hide()
+    }
+  }
+})
   }
 
   show(planet, x, y) {
-    this.planet = planet
-    this.isVisible = true
-    this.justOpened = true
+  this.planet = planet
+  this.isVisible = true
+  this.justOpened = true
+  
+  // On mobile, center the popup on screen instead of at pointer location
+  if (this.scene.isMobile) {
+    const centerX = this.scene.cameras.main.scrollX + this.scene.scale.width / 2
+    const centerY = this.scene.cameras.main.scrollY + this.scene.scale.height / 2
+    this.container.setPosition(centerX, centerY)
+  } else {
+    // Desktop: show at pointer location
     this.container.setPosition(x, y)
-    this.container.setVisible(true)
-    this.updateShipCount()
-
-    // Allow closing after 200ms
-    this.scene.time.delayedCall(200, () => {
-      this.justOpened = false
-    })
   }
+  
+  this.container.setVisible(true)
+  this.updateShipCount()
+
+  // Allow closing after 200ms
+  this.scene.time.delayedCall(200, () => {
+    this.justOpened = false
+  })
+}
 
   hide() {
     this.isVisible = false

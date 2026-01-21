@@ -7,72 +7,114 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene')
   }
 
-create() {
-  // Detect if mobile
-  this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+  create() {
+    // Detect if mobile
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-  const cx = this.scale.width / 2
-  const cy = this.scale.height / 2
+    const cx = this.scale.width / 2
+    const cy = this.scale.height / 2
 
-  // First planet (blue) with HOME PLANET nameplate
-  this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
+    // First planet (blue) with HOME PLANET nameplate
+    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
 
-  // Second planet (gray) with PLANET1 nameplate
-  this.grayPlanet = new BasePlanet(this, cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1')
+    // Planets array (excluding home planet)
+    this.planets = []
 
-  // Create UI camera BEFORE creating ships
-  this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
-  this.uiCamera.setScroll(0, 0)
+    // Create UI camera BEFORE creating ships
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+    this.uiCamera.setScroll(0, 0)
 
-  // Ships array
-  this.ships = []
-  this.addShip()
-  
-  // Set up planet click handler for travel
-  this.grayPlanet.setOnClick((planet) => {
-    // Send first idle ship to this planet
-    const idleShip = this.ships.find(ship => ship.state === 'IDLE')
-    if (idleShip) {
-      idleShip.travelTo(planet)
-    }
-  })
+    // Ships array
+    this.ships = []
+    this.addShip()
 
-  // Camera pan setup
-  this.isPanning = false
-  this.panStartX = 0
-  this.panStartY = 0
+    // Second planet (gray) with PLANET1 nameplate
+    this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
 
-  this.input.on('pointerdown', (pointer) => {
-    this.isPanning = true
-    this.panStartX = pointer.x + this.cameras.main.scrollX
-    this.panStartY = pointer.y + this.cameras.main.scrollY
-  })
-
-  this.input.on('pointermove', (pointer) => {
-    if (this.isPanning) {
-      this.cameras.main.scrollX = this.panStartX - pointer.x
-      this.cameras.main.scrollY = this.panStartY - pointer.y
-    }
-  })
-
-  this.input.on('pointerup', () => {
+    // Camera pan setup
     this.isPanning = false
-  })
+    this.panStartX = 0
+    this.panStartY = 0
 
-  // Mouse wheel zoom
-  this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-    const zoomAmount = deltaY > 0 ? -0.1 : 0.1
-    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
-    this.cameras.main.setZoom(newZoom)
-  })
-  
-  // UI buttons
-  this.createZoomButtons()
-  this.createAddShipButton()
+    this.input.on('pointerdown', (pointer) => {
+      this.isPanning = true
+      this.panStartX = pointer.x + this.cameras.main.scrollX
+      this.panStartY = pointer.y + this.cameras.main.scrollY
+    })
 
-  // Handle window resize
-  this.scale.on('resize', this.handleResize, this)
-}
+    this.input.on('pointermove', (pointer) => {
+      if (this.isPanning) {
+        this.cameras.main.scrollX = this.panStartX - pointer.x
+        this.cameras.main.scrollY = this.panStartY - pointer.y
+      }
+    })
+
+    this.input.on('pointerup', () => {
+      this.isPanning = false
+    })
+
+    // Mouse wheel zoom
+    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+      const zoomAmount = deltaY > 0 ? -0.1 : 0.1
+      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.5, 3)
+      this.cameras.main.setZoom(newZoom)
+    })
+    
+    // UI buttons
+    this.createZoomButtons()
+    this.createAddShipButton()
+    this.createScanButton()
+
+    // Handle window resize
+    this.scale.on('resize', this.handleResize, this)
+  }
+
+  addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
+    const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
+    this.planets.push(planet)
+
+    // Set up planet click handler for travel
+    planet.setOnClick((clickedPlanet) => {
+      // Send first idle ship to this planet
+      const idleShip = this.ships.find(ship => ship.state === 'IDLE')
+      if (idleShip) {
+        idleShip.travelTo(clickedPlanet)
+      }
+    })
+
+    // Set up planet hold handler for recall
+    planet.setOnHold((heldPlanet) => {
+      // Recall all ships assigned to this planet
+      this.ships.forEach(ship => {
+        if (ship.assignedPlanet === heldPlanet) {
+          ship.recallToHome()
+        }
+      })
+    })
+
+    this.updateUICameraIgnoreList()
+  }
+
+  scanForPlanet() {
+    // Random position around home planet
+    const angle = Math.random() * Math.PI * 2
+    const distance = Phaser.Math.Between(200, 400)
+    const x = this.basePlanet.x + Math.cos(angle) * distance
+    const y = this.basePlanet.y + Math.sin(angle) * distance
+
+    // Random colors
+    const coreColor = Phaser.Display.Color.RandomRGB().color
+    const ringColor = Phaser.Display.Color.RandomRGB().color
+
+    // Random size
+    const coreRadius = Phaser.Math.Between(50, 90)
+
+    // Generate name
+    const planetNumber = this.planets.length + 1
+    const name = `PLANET${planetNumber}`
+
+    this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
+  }
 
   addShip() {
     const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
@@ -84,11 +126,15 @@ create() {
     const ignoreList = [
       this.basePlanet.graphics, 
       this.basePlanet.hitZone,
-      this.basePlanet.nameText,
-      this.grayPlanet.graphics,
-      this.grayPlanet.hitZone,
-      this.grayPlanet.nameText
+      this.basePlanet.nameText
     ]
+
+    // Add all planets to ignore list
+    this.planets.forEach(planet => {
+      ignoreList.push(planet.graphics)
+      ignoreList.push(planet.hitZone)
+      ignoreList.push(planet.nameText)
+    })
 
     // Add all ship graphics to ignore list
     this.ships.forEach(ship => {
@@ -115,9 +161,17 @@ create() {
 
     if (this.addShipBtn) {
       if (this.isMobile) {
-        this.addShipBtn.setPosition(gameSize.width / 2, 100)
+        this.addShipBtn.setPosition(gameSize.width / 2 - 70, 100)
       } else {
         this.addShipBtn.setPosition(gameSize.width - 70, 150)
+      }
+    }
+
+    if (this.scanBtn) {
+      if (this.isMobile) {
+        this.scanBtn.setPosition(gameSize.width / 2 + 70, 100)
+      } else {
+        this.scanBtn.setPosition(gameSize.width - 70, 215)
       }
     }
   }
@@ -181,18 +235,18 @@ create() {
 
   createAddShipButton() {
     const buttonSize = this.isMobile ? 60 : 50
-    const fontSize = this.isMobile ? '24px' : '18px'
+    const fontSize = this.isMobile ? '18px' : '14px'
 
     const buttonStyle = {
       fontSize: fontSize,
       color: '#ffaa00',
       backgroundColor: '#1a2a3a',
-      padding: { x: 10, y: 8 },
+      padding: { x: 8, y: 6 },
       align: 'center'
     }
 
     if (this.isMobile) {
-      this.addShipBtn = this.add.text(this.scale.width / 2, 100, 'ADD SHIP', buttonStyle)
+      this.addShipBtn = this.add.text(this.scale.width / 2 - 70, 100, 'ADD SHIP', buttonStyle)
         .setOrigin(0.5)
         .setInteractive()
         .setDepth(100)
@@ -211,9 +265,40 @@ create() {
     })
   }
 
+  createScanButton() {
+    const fontSize = this.isMobile ? '18px' : '14px'
+
+    const buttonStyle = {
+      fontSize: fontSize,
+      color: '#00ff00',
+      backgroundColor: '#1a2a3a',
+      padding: { x: 8, y: 6 },
+      align: 'center'
+    }
+
+    if (this.isMobile) {
+      this.scanBtn = this.add.text(this.scale.width / 2 + 70, 100, 'SCAN', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+    } else {
+      this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
+
+    this.cameras.main.ignore([this.scanBtn])
+
+    this.scanBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.scanForPlanet()
+    })
+  }
+
   update() {
     this.basePlanet.update()
-    this.grayPlanet.update()
+    this.planets.forEach(planet => planet.update())
     this.ships.forEach(ship => ship.update())
   }
 }

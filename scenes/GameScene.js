@@ -63,25 +63,33 @@ class PlanetPopup {
     // Track if we're clicking inside buttons
     this.clickedInsidePopup = false
 
-    // Button handlers
-    this.minusBtn.on('pointerdown', () => {
+    // Button handlers - stop propagation on both down and up
+    this.minusBtn.on('pointerdown', (pointer) => {
       this.clickedInsidePopup = true
+      pointer.event.stopPropagation()
     })
 
     this.minusBtn.on('pointerup', (pointer) => {
       pointer.event.stopPropagation()
       this.onMinusClicked()
-      this.clickedInsidePopup = false
+      // Keep popup open
+      this.scene.time.delayedCall(10, () => {
+        this.clickedInsidePopup = false
+      })
     })
 
-    this.plusBtn.on('pointerdown', () => {
+    this.plusBtn.on('pointerdown', (pointer) => {
       this.clickedInsidePopup = true
+      pointer.event.stopPropagation()
     })
 
     this.plusBtn.on('pointerup', (pointer) => {
       pointer.event.stopPropagation()
       this.onPlusClicked()
-      this.clickedInsidePopup = false
+      // Keep popup open
+      this.scene.time.delayedCall(10, () => {
+        this.clickedInsidePopup = false
+      })
     })
 
     // Click anywhere to close (but not if clicking buttons or just opened)
@@ -96,7 +104,6 @@ class PlanetPopup {
           this.hide()
         }
       }
-      this.clickedInsidePopup = false
     })
   }
 
@@ -108,8 +115,8 @@ class PlanetPopup {
     this.container.setVisible(true)
     this.updateShipCount()
 
-    // Allow closing after a short delay
-    this.scene.time.delayedCall(100, () => {
+    // Allow closing after 200ms
+    this.scene.time.delayedCall(200, () => {
       this.justOpened = false
     })
   }
@@ -118,6 +125,7 @@ class PlanetPopup {
     this.isVisible = false
     this.container.setVisible(false)
     this.planet = null
+    this.clickedInsidePopup = false
   }
 
   updateShipCount() {
@@ -258,18 +266,58 @@ export default class GameScene extends Phaser.Scene {
   }
 
   scanForPlanet() {
-    // Random position around home planet
-    const angle = Math.random() * Math.PI * 2
-    const distance = Phaser.Math.Between(200, 400)
-    const x = this.basePlanet.x + Math.cos(angle) * distance
-    const y = this.basePlanet.y + Math.sin(angle) * distance
+    let x, y, coreRadius
+    let validPosition = false
+    let attempts = 0
+    const maxAttempts = 50
+
+    // Keep trying to find a non-overlapping position
+    while (!validPosition && attempts < maxAttempts) {
+      // Random position around home planet
+      const angle = Math.random() * Math.PI * 2
+      const distance = Phaser.Math.Between(200, 400)
+      x = this.basePlanet.x + Math.cos(angle) * distance
+      y = this.basePlanet.y + Math.sin(angle) * distance
+
+      // Random size
+      coreRadius = Phaser.Math.Between(50, 90)
+
+      // Check if this position overlaps with any existing planet
+      validPosition = true
+      const minDistance = coreRadius + 100 // Buffer space
+
+      // Check against home planet
+      const distToHome = Math.sqrt(
+        Math.pow(x - this.basePlanet.x, 2) + 
+        Math.pow(y - this.basePlanet.y, 2)
+      )
+      if (distToHome < this.basePlanet.coreRadius + minDistance) {
+        validPosition = false
+      }
+
+      // Check against all other planets
+      for (const planet of this.planets) {
+        const dist = Math.sqrt(
+          Math.pow(x - planet.x, 2) + 
+          Math.pow(y - planet.y, 2)
+        )
+        if (dist < planet.coreRadius + minDistance) {
+          validPosition = false
+          break
+        }
+      }
+
+      attempts++
+    }
+
+    if (!validPosition) {
+      console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
+      return
+    }
 
     // Random colors
     const coreColor = Phaser.Display.Color.RandomRGB().color
     const ringColor = Phaser.Display.Color.RandomRGB().color
-
-    // Random size
-    const coreRadius = Phaser.Math.Between(50, 90)
 
     // Generate name
     const planetNumber = this.planets.length + 1

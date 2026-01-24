@@ -529,15 +529,15 @@ class DealershipPanel {
   }
 }
 
-// ResourceBar class
-// ResourceBar class
+
+// ResourceBar class - update the constructor
 class ResourceBar {
   constructor(scene) {
     this.scene = scene
     this.resources = {}
     
-    // Increased safe area padding for mobile (status bar, notch, etc.)
-    const topPadding = scene.isMobile ? 50 : 0
+    // Even more safe area padding for mobile (80px should clear most notches/status bars)
+    const topPadding = scene.isMobile ? 80 : 0
     
     // Create container fixed to screen
     this.container = scene.add.container(0, topPadding)

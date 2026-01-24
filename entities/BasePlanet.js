@@ -31,8 +31,7 @@ class RingLayer {
   }
 }
 
-export default class BasePlanet {
-  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70, textColor = '#ffffff') {
+constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70, textColor = '#ffffff', rarity = null) {
   this.scene = scene
   this.x = x
   this.y = y
@@ -40,6 +39,7 @@ export default class BasePlanet {
   this.ringColor = ringColor
   this.name = name
   this.textColor = textColor
+  this.rarity = rarity // Store rarity info
   this.onClickCallback = null
   this.onHoldCallback = null
   

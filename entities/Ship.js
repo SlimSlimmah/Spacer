@@ -181,7 +181,10 @@ updateTrail() {
   this.trailPoints = this.trailPoints.filter(p => p.alpha > 0.05)
 }
 
-// Update returnHome similarly
+
+
+
+
 returnHome() {
   this.state = 'SPIRALING'
   this.statusText.setVisible(false)
@@ -217,6 +220,12 @@ returnHome() {
       this.draw()
     },
     onComplete: () => {
+      // DELIVERED! Add revolution to resource bar by rarity
+      if (this.scene.resourceBar && this.assignedPlanet && this.assignedPlanet.rarity) {
+        this.scene.resourceBar.addRevolution(this.assignedPlanet.rarity)
+      }
+      
+      // Back home - set up orbit once then return to mining
       this.angle = this.spiralAngle
       this.currentPlanet = this.homePlanet
       this.state = 'ORBITING'
@@ -242,6 +251,10 @@ returnHome() {
     }
   })
 }
+
+
+
+
 
 // Update recallToHome similarly
 recallToHome() {
@@ -418,72 +431,6 @@ startMining() {
   })
 }
 
-returnHome() {
-  this.state = 'SPIRALING'
-  this.statusText.setVisible(false)
-  this.trailPoints = []
-  
-  // Add initial trail point immediately
-  this.addTrailPoint(this.x, this.y)
-
-  const dx = this.x - this.homePlanet.x
-  const dy = this.y - this.homePlanet.y
-  const startDistance = Math.sqrt(dx * dx + dy * dy)
-  const startAngle = Math.atan2(dy, dx)
-
-  this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
-  this.spiralRadius = startDistance
-  this.spiralAngle = startAngle
-
-  this.scene.tweens.add({
-    targets: this,
-    spiralRadius: this.homePlanet.coreRadius,
-    duration: this.travelDuration,
-    ease: 'Power2',
-    onUpdate: () => {
-      this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
-      
-      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
-      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
-      
-      // Add trail point every frame
-      this.addTrailPoint(this.x, this.y)
-      
-      this.statusText.setPosition(this.x, this.y - 15)
-      this.draw()
-    },
-    onComplete: () => {
-      // DELIVERED! Add revolution to resource bar
-      if (this.scene.resourceBar && this.assignedPlanet) {
-        this.scene.resourceBar.addRevolution(this.assignedPlanet.ringColor)
-      }
-      
-      // Back home - set up orbit once then return to mining
-      this.angle = this.spiralAngle
-      this.currentPlanet = this.homePlanet
-      this.state = 'ORBITING'
-      this.statusText.setVisible(false)
-      this.trailPoints = []
-      this.updateTrail()
-      
-      const startAngle = this.angle
-      
-      this.orbitCheckInterval = this.scene.time.addEvent({
-        delay: 100,
-        callback: () => {
-          const angleDiff = Math.abs(this.angle - startAngle)
-          if (angleDiff > Math.PI * 2 - 0.2) {
-            this.orbitCheckInterval.remove()
-            if (this.assignedPlanet) {
-              this.travelTo(this.assignedPlanet)
-            }
-          }
-        },
-        loop: true
-      })
-    }
-  })
-}
 
 
 
@@ -492,68 +439,14 @@ returnHome() {
 
 
 
-  recallToHome() {
-    // Stop ALL ongoing tweens for this ship
-    this.scene.tweens.killTweensOf(this)
-    
-    // Stop any orbit checking intervals
-    if (this.orbitCheckInterval) {
-      this.orbitCheckInterval.remove()
-      this.orbitCheckInterval = null
-    }
 
-    this.state = 'SPIRALING'
-    this.statusText.setVisible(false)
-    this.assignedPlanet = null
-    this.hideProgressBar()
-    this.miningParticles = [] // Clear particles
-    this.trailPoints = [] // Clear trail
 
-    // Change back to idle color (orange)
-    this.shipColor = 0xffaa00
 
-    // Calculate current distance and angle relative to home planet
-    const dx = this.x - this.homePlanet.x
-    const dy = this.y - this.homePlanet.y
-    const startDistance = Math.sqrt(dx * dx + dy * dy)
-    const startAngle = Math.atan2(dy, dx)
 
-    // Set up spiral - start from current position relative to home
-    this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
-    this.spiralRadius = startDistance
-    this.spiralAngle = startAngle
 
-    this.scene.tweens.add({
-      targets: this,
-      spiralRadius: this.homePlanet.coreRadius,
-      duration: this.travelDuration,
-      ease: 'Power2',
-      onUpdate: () => {
-        // Rotate while spiraling in
-        this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
-        
-        // Calculate position on spiral
-        this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
-        this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
-        
-        // Add trail point
-        this.addTrailPoint(this.x, this.y)
-        
-        this.statusText.setPosition(this.x, this.y - 15)
-        this.draw()
-      },
-onComplete: () => {
-  // Back home and IDLE
-  this.angle = this.spiralAngle
-  this.currentPlanet = this.homePlanet
-  this.state = 'IDLE'
-  this.statusText.setText('IDLE')
-  this.statusText.setVisible(true)
-  this.trailPoints = [] // Clear trail on arrival
-  this.updateTrail() // Clear trail graphics
-}
-    })
-  }
+
+
+
 
   showProgressBar() {
     this.progressBarVisible = true

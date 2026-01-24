@@ -10,10 +10,11 @@ class PlanetPopup {
     this.isVisible = false
     this.justOpened = false
 
-    // Create popup container
+    // Create popup container - FIXED TO SCREEN
     this.container = scene.add.container(0, 0)
     this.container.setDepth(200)
     this.container.setVisible(false)
+    this.container.setScrollFactor(0) // Fixed to screen, not world
 
     // Background
     this.bg = scene.add.graphics()
@@ -92,65 +93,54 @@ class PlanetPopup {
       })
     })
 
-    // Click anywhere to close
-this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-  if (this.isVisible && !this.clickedInsidePopup && !this.justOpened) {
-    let outsideClick = false
-    
-    if (this.scene.isMobile) {
-      // Mobile: check screen coordinates
-      const screenX = pointer.x
-      const screenY = pointer.y
-      const centerX = this.scene.scale.width / 2
-      const centerY = this.scene.scale.height / 2
-      
-      const bounds = new Phaser.Geom.Rectangle(
-        centerX - 75,
-        centerY - 60,
-        150,
-        120
-      )
-      
-      outsideClick = !Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)
-    } else {
-      // Desktop: check world coordinates
-      const worldX = pointer.x + this.scene.cameras.main.scrollX
-      const worldY = pointer.y + this.scene.cameras.main.scrollY
-      const popupBounds = this.container.getBounds()
-      
-      outsideClick = !Phaser.Geom.Rectangle.Contains(popupBounds, worldX, worldY)
-    }
-    
-    if (outsideClick) {
-      this.hide()
-    }
-  }
-})
+    // Click anywhere to close - use screen coordinates
+    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+      if (this.isVisible && !this.clickedInsidePopup && !this.justOpened) {
+        // Use screen coordinates since popup has scrollFactor 0
+        const screenX = pointer.x
+        const screenY = pointer.y
+        const popupX = this.container.x
+        const popupY = this.container.y
+        
+        const bounds = new Phaser.Geom.Rectangle(
+          popupX - 75,
+          popupY - 60,
+          150,
+          120
+        )
+        
+        if (!Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)) {
+          this.hide()
+        }
+      }
+    })
   }
 
-  show(planet, x, y) {
-  this.planet = planet
-  this.isVisible = true
-  this.justOpened = true
-  
-  // On mobile, center the popup on screen instead of at pointer location
-  if (this.scene.isMobile) {
-    const centerX = this.scene.cameras.main.scrollX + this.scene.scale.width / 2
-    const centerY = this.scene.cameras.main.scrollY + this.scene.scale.height / 2
-    this.container.setPosition(centerX, centerY)
-  } else {
-    // Desktop: show at pointer location
-    this.container.setPosition(x, y)
-  }
-  
-  this.container.setVisible(true)
-  this.updateShipCount()
+  show(planet, worldX, worldY) {
+    this.planet = planet
+    this.isVisible = true
+    this.justOpened = true
+    
+    // Convert world coordinates to screen coordinates
+    const cam = this.scene.cameras.main
+    const screenX = (worldX - cam.scrollX) * cam.zoom
+    const screenY = (worldY - cam.scrollY) * cam.zoom
+    
+    // Clamp to screen bounds to keep popup visible
+    const popupHalfWidth = 75
+    const popupHalfHeight = 60
+    const clampedX = Phaser.Math.Clamp(screenX, popupHalfWidth, this.scene.scale.width - popupHalfWidth)
+    const clampedY = Phaser.Math.Clamp(screenY, popupHalfHeight, this.scene.scale.height - popupHalfHeight)
+    
+    this.container.setPosition(clampedX, clampedY)
+    this.container.setVisible(true)
+    this.updateShipCount()
 
-  // Allow closing after 200ms
-  this.scene.time.delayedCall(200, () => {
-    this.justOpened = false
-  })
-}
+    // Allow closing after 200ms
+    this.scene.time.delayedCall(200, () => {
+      this.justOpened = false
+    })
+  }
 
   hide() {
     this.isVisible = false
@@ -172,14 +162,12 @@ this.closeListener = this.scene.input.on('pointerup', (pointer) => {
   onMinusClicked() {
     if (!this.planet) return
 
-    // Find one ship assigned to this planet and recall it
     const assignedShip = this.scene.ships.find(ship => 
       ship.assignedPlanet === this.planet
     )
 
     if (assignedShip) {
       assignedShip.recallToHome()
-      // Update immediately
       this.scene.time.delayedCall(50, () => {
         this.updateShipCount()
       })
@@ -189,12 +177,10 @@ this.closeListener = this.scene.input.on('pointerup', (pointer) => {
   onPlusClicked() {
     if (!this.planet) return
 
-    // Find an idle ship
     const idleShip = this.scene.ships.find(ship => ship.state === 'IDLE')
 
     if (idleShip) {
       idleShip.travelTo(this.planet)
-      // Update immediately
       this.scene.time.delayedCall(50, () => {
         this.updateShipCount()
       })
@@ -394,6 +380,125 @@ class ResearchPanel {
   }
 }
 
+
+// DealershipPanel class
+class DealershipPanel {
+  constructor(scene) {
+    this.scene = scene
+    this.isVisible = false
+    this.justOpened = false
+
+    // Create panel container
+    this.container = scene.add.container(0, 0)
+    this.container.setDepth(250)
+    this.container.setVisible(false)
+    this.container.setScrollFactor(0)
+
+    const panelWidth = 400
+    const panelHeight = 250
+
+    // Background
+    this.bg = scene.add.graphics()
+    this.bg.fillStyle(0x0a0f1a, 0.98)
+    this.bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.bg.lineStyle(3, 0xffaa00, 1)
+    this.bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.container.add(this.bg)
+
+    // Title
+    this.titleText = scene.add.text(0, -panelHeight/2 + 30, 'DEALERSHIP', {
+      fontSize: '24px',
+      color: '#ffaa00',
+      fontStyle: 'bold',
+      align: 'center'
+    })
+    this.titleText.setOrigin(0.5)
+    this.container.add(this.titleText)
+
+    // Close button (X)
+    this.closeBtn = scene.add.text(panelWidth/2 - 30, -panelHeight/2 + 30, '×', {
+      fontSize: '32px',
+      color: '#ff6666',
+      fontStyle: 'bold'
+    })
+    this.closeBtn.setOrigin(0.5)
+    this.closeBtn.setInteractive({ useHandCursor: true })
+    this.closeBtn.on('pointerup', () => this.hide())
+    this.container.add(this.closeBtn)
+
+    // Ship purchase option
+    this.createShipItem('Basic Ship', 'Standard mining vessel', 0, -20)
+  }
+
+  createShipItem(name, description, cost, yOffset) {
+    // Container for this ship
+    const itemBg = this.scene.add.graphics()
+    itemBg.fillStyle(0x1a2a3a, 0.8)
+    itemBg.fillRoundedRect(-180, yOffset, 360, 70, 8)
+    this.container.add(itemBg)
+
+    // Name
+    const nameText = this.scene.add.text(-170, yOffset + 15, name, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+    this.container.add(nameText)
+
+    // Description
+    const descText = this.scene.add.text(-170, yOffset + 38, description, {
+      fontSize: '14px',
+      color: '#aaaaaa'
+    })
+    this.container.add(descText)
+
+    // Purchase button
+    const btnText = cost === 0 ? 'FREE' : `${cost} Credits`
+    const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
+      fontSize: '16px',
+      color: '#ffaa00',
+      backgroundColor: '#3a2a1a',
+      padding: { x: 15, y: 8 }
+    })
+    purchaseBtn.setOrigin(0.5)
+    purchaseBtn.setInteractive({ useHandCursor: true })
+    purchaseBtn.on('pointerdown', (pointer) => {
+      pointer.event.stopPropagation()
+    })
+    purchaseBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.purchaseShip()
+    })
+    this.container.add(purchaseBtn)
+  }
+
+  purchaseShip() {
+    // Add a new ship
+    this.scene.addShip()
+  }
+
+  show() {
+    this.isVisible = true
+    this.justOpened = true
+    
+    const centerX = this.scene.scale.width / 2
+    const centerY = this.scene.scale.height / 2
+    this.container.setPosition(centerX, centerY)
+    this.container.setVisible(true)
+
+    this.scene.time.delayedCall(200, () => {
+      this.justOpened = false
+    })
+  }
+
+  hide() {
+    this.isVisible = false
+    this.container.setVisible(false)
+  }
+}
+
+
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene')
@@ -435,6 +540,9 @@ export default class GameScene extends Phaser.Scene {
 // Create research panel
 this.researchPanel = new ResearchPanel(this)
 
+  // Create dealership panel
+  this.dealershipPanel = new DealershipPanel(this)
+
   // Second planet (gray) with PLANET1 nameplate
   this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
 
@@ -469,9 +577,10 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
     
     // UI buttons
   this.createZoomButtons()
-  this.createAddShipButton()
+  //this.createAddShipButton()
   this.createScanButton() // Will be hidden by default
   this.createResearchButton()
+  this.createDealershipButton()
 
   // Hide scan button until Planet Detection is researched
   this.scanBtn.setVisible(false)
@@ -479,6 +588,44 @@ this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
   // Handle window resize
   this.scale.on('resize', this.handleResize, this)
 }
+
+
+createDealershipButton() {
+  const fontSize = this.isMobile ? '14px' : '14px'
+  const mobileButtonRow2 = this.isMobile ? 130 : 100
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#ffaa00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.dealershipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'DEALERSHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.dealershipBtn = this.add.text(this.scale.width - 70, 150, 'DEALERSHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.dealershipBtn])
+
+  this.dealershipBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.dealershipPanel.show()
+  })
+}
+
+
+
+
 
   addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
   const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
@@ -646,7 +793,6 @@ handleResize(gameSize) {
   const mobileButtonRow2 = this.isMobile ? 130 : 100
   const mobileButtonRow3 = this.isMobile ? 200 : 170
 
-  // Reposition UI elements on resize
   if (this.zoomInBtn && this.zoomOutBtn) {
     if (this.isMobile) {
       this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
@@ -657,11 +803,11 @@ handleResize(gameSize) {
     }
   }
 
-  if (this.addShipBtn) {
+  if (this.dealershipBtn) {
     if (this.isMobile) {
-      this.addShipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
+      this.dealershipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
     } else {
-      this.addShipBtn.setPosition(gameSize.width - 70, 150)
+      this.dealershipBtn.setPosition(gameSize.width - 70, 150)
     }
   }
 
@@ -672,8 +818,8 @@ handleResize(gameSize) {
       this.scanBtn.setPosition(gameSize.width - 70, 215)
     }
   }
-  
-    if (this.researchBtn) {
+
+  if (this.researchBtn) {
     if (this.isMobile) {
       this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
     } else {

@@ -520,10 +520,11 @@ class DealershipPanel {
 }
 
 // ResourceBar class
+// ResourceBar class
 class ResourceBar {
   constructor(scene) {
     this.scene = scene
-    this.resources = {} // Track revolutions by planet color
+    this.resources = {} // Track revolutions by rarity
     
     // Create container fixed to screen
     this.container = scene.add.container(0, 0)
@@ -544,9 +545,18 @@ class ResourceBar {
     // Container for resource items (will be updated dynamically)
     this.resourceItems = []
     
-    // Ship count (supply) - positioned on the right
-    this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2, 'SHIPS: 1', {
-      fontSize: '16px',
+    // Planet count - positioned on the right
+    this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 10, 'PLANETS: 1/10', {
+      fontSize: '14px',
+      color: '#66ccff',
+      fontStyle: 'bold'
+    })
+    this.planetCountText.setOrigin(1, 0.5)
+    this.container.add(this.planetCountText)
+    
+    // Ship count (supply) - positioned on the right below planets
+    this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2 + 10, 'SHIPS: 1/10', {
+      fontSize: '14px',
       color: '#ffaa00',
       fontStyle: 'bold'
     })
@@ -556,23 +566,28 @@ class ResourceBar {
     this.update()
   }
   
-  addRevolution(planetColor) {
-    // Convert color to hex string for tracking
-    const colorKey = planetColor.toString(16).padStart(6, '0')
+  addRevolution(rarity) {
+    // Track by rarity name instead of individual color
+    const rarityName = rarity.name
     
-    if (!this.resources[colorKey]) {
-      this.resources[colorKey] = {
-        color: planetColor,
+    if (!this.resources[rarityName]) {
+      this.resources[rarityName] = {
+        name: rarityName,
+        color: rarity.ringBase, // Use base ring color for display
         count: 0
       }
     }
     
-    this.resources[colorKey].count++
+    this.resources[rarityName].count++
     this.update()
   }
   
-  updateShipCount(count) {
-    this.shipCountText.setText(`SHIPS: ${count}`)
+  updateShipCount(current, max) {
+    this.shipCountText.setText(`SHIPS: ${current}/${max}`)
+  }
+  
+  updatePlanetCount(current, max) {
+    this.planetCountText.setText(`PLANETS: ${current}/${max}`)
   }
   
   update() {
@@ -586,7 +601,7 @@ class ResourceBar {
     
     const sortedResources = Object.entries(this.resources).sort((a, b) => b[1].count - a[1].count)
     
-    for (const [colorKey, data] of sortedResources) {
+    for (const [rarityName, data] of sortedResources) {
       // Colored dot
       const dot = this.scene.add.graphics()
       dot.fillStyle(data.color, 1)
@@ -616,8 +631,9 @@ class ResourceBar {
     this.bg.lineStyle(2, 0x66ccff, 0.5)
     this.bg.lineBetween(0, 40, width, 40)
     
-    // Reposition ship count
-    this.shipCountText.setPosition(width - 20, 20)
+    // Reposition counters
+    this.planetCountText.setPosition(width - 20, 10)
+    this.shipCountText.setPosition(width - 20, 30)
   }
 }
 
@@ -626,51 +642,56 @@ export default class GameScene extends Phaser.Scene {
     super('GameScene')
   }
 
-  create() {
-    // Detect if mobile
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+create() {
+  // Detect if mobile
+  this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-    const cx = this.scale.width / 2
-    const cy = this.scale.height / 2
+  const cx = this.scale.width / 2
+  const cy = this.scale.height / 2
 
-    // Research state
-    this.research = {
-      planetDetection: false,
-      thrustersLevel: 0
-    }
+  // Research state
+  this.research = {
+    planetDetection: false,
+    thrustersLevel: 0
+  }
 
-    // First planet (blue) with HOME PLANET nameplate
-    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
+  // Limits
+  this.maxShips = 10
+  this.maxPlanets = 10
 
-    // Planets array (excluding home planet)
-    this.planets = []
+  // First planet (blue) with HOME PLANET nameplate
+  this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
 
-    // Create UI camera BEFORE creating ships and popup
-    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
-    this.uiCamera.setScroll(0, 0)
+  // Planets array (excluding home planet)
+  this.planets = []
 
-    // Create resource bar FIRST
-    this.resourceBar = new ResourceBar(this)
-    this.cameras.main.ignore([this.resourceBar.container])
+  // Create UI camera BEFORE creating ships and popup
+  this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+  this.uiCamera.setScroll(0, 0)
 
-    // Ships array
-    this.ships = []
-    this.addShip()
+  // Create resource bar FIRST
+  this.resourceBar = new ResourceBar(this)
+  this.cameras.main.ignore([this.resourceBar.container])
 
-    // Create planet popup AFTER UI camera exists
-    this.planetPopup = new PlanetPopup(this)
-    
-    // CRITICAL: Make main camera ignore popup, only UI camera renders it
-    this.cameras.main.ignore([this.planetPopup.container])
+  // Ships array
+  this.ships = []
+  this.addShip()
 
-    // Create research panel
-    this.researchPanel = new ResearchPanel(this)
-    
-    // Create dealership panel
-    this.dealershipPanel = new DealershipPanel(this)
+  // Create planet popup AFTER UI camera exists
+  this.planetPopup = new PlanetPopup(this)
+  
+  // CRITICAL: Make main camera ignore popup, only UI camera renders it
+  this.cameras.main.ignore([this.planetPopup.container])
 
-// In create() method, update the PLANET1 creation:
-this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70, '#999999')
+  // Create research panel
+  this.researchPanel = new ResearchPanel(this)
+  
+  // Create dealership panel
+  this.dealershipPanel = new DealershipPanel(this)
+
+  // Second planet (gray) with PLANET1 nameplate
+  this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70, '#999999', null)
+
 
     // Camera pan setup
     this.isPanning = false
@@ -716,25 +737,28 @@ this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70, '#999999')
 
 
 
-addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff') {
-  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius, textColor)
+addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff', rarity = null) {
+  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius, textColor, rarity)
   this.planets.push(planet)
 
   // Set up planet click handler for travel
   planet.setOnClick((clickedPlanet) => {
-    // Send first idle ship to this planet
     const idleShip = this.ships.find(ship => ship.state === 'IDLE')
     if (idleShip) {
       idleShip.travelTo(clickedPlanet)
     }
   })
 
-  // Set up planet hold handler to show popup at hold location
   planet.setOnHold((heldPlanet, pointerX, pointerY) => {
     this.planetPopup.show(heldPlanet, pointerX, pointerY)
   })
 
   this.updateUICameraIgnoreList()
+  
+  // Update planet count in resource bar
+  if (this.resourceBar) {
+    this.resourceBar.updatePlanetCount(this.planets.length, this.maxPlanets)
+  }
 }
 
 
@@ -744,18 +768,16 @@ addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff') {
 // Add this method to the GameScene class
 getRarityColors() {
   const rarities = [
-    { name: 'COMMON', weight: 50, coreBase: 0x555555, ringBase: 0x999999, textColor: '#999999' },
-    { name: 'UNCOMMON', weight: 30, coreBase: 0x2d5a2d, ringBase: 0x4a9d4a, textColor: '#4a9d4a' },
-    { name: 'RARE', weight: 12, coreBase: 0x2d4a7a, ringBase: 0x4a7acc, textColor: '#4a7acc' },
-    { name: 'EPIC', weight: 5, coreBase: 0x6b2d7a, ringBase: 0xa84acc, textColor: '#a84acc' },
-    { name: 'LEGENDARY', weight: 2, coreBase: 0x8a7a2d, ringBase: 0xddc84a, textColor: '#ddc84a' },
-    { name: 'MYTHIC', weight: 1, coreBase: 0x8a4a2d, ringBase: 0xdd7a4a, textColor: '#dd7a4a' }
+    { name: 'COMMON', weight: 50, ringBase: 0x999999, textColor: '#999999' },
+    { name: 'UNCOMMON', weight: 30, ringBase: 0x4a9d4a, textColor: '#4a9d4a' },
+    { name: 'RARE', weight: 12, ringBase: 0x4a7acc, textColor: '#4a7acc' },
+    { name: 'EPIC', weight: 5, ringBase: 0xa84acc, textColor: '#a84acc' },
+    { name: 'LEGENDARY', weight: 2, ringBase: 0xddc84a, textColor: '#ddc84a' },
+    { name: 'MYTHIC', weight: 1, ringBase: 0xdd7a4a, textColor: '#dd7a4a' }
   ]
   
-  // Calculate total weight
   const totalWeight = rarities.reduce((sum, r) => sum + r.weight, 0)
   
-  // Pick random rarity based on weights
   let random = Math.random() * totalWeight
   for (const rarity of rarities) {
     random -= rarity.weight
@@ -764,10 +786,16 @@ getRarityColors() {
     }
   }
   
-  return rarities[0] // Fallback to common
+  return rarities[0]
 }
 
 scanForPlanet() {
+  // Check if at planet limit
+  if (this.planets.length >= this.maxPlanets) {
+    console.log("Planet limit reached!")
+    return
+  }
+
   let x, y, coreRadius
   let validPosition = false
   let attempts = 0
@@ -780,25 +808,18 @@ scanForPlanet() {
   const minDistance = baseMinDistance + distanceIncrease
   const maxDistance = baseMaxDistance + distanceIncrease
 
-  // Keep trying to find a non-overlapping position
   while (!validPosition && attempts < maxAttempts) {
-    // Random position around home planet - distance based on planet count
     const angle = Math.random() * Math.PI * 2
     const distance = Phaser.Math.Between(minDistance, maxDistance)
     x = this.basePlanet.x + Math.cos(angle) * distance
     y = this.basePlanet.y + Math.sin(angle) * distance
 
-    // Random level (1-10)
     const level = Phaser.Math.Between(1, 10)
-    
-    // Size based on level (50 base + 5 per level)
     coreRadius = 50 + (level * 5)
 
-    // Check if this position overlaps with any existing planet
     validPosition = true
     const bufferSpace = coreRadius + 100
 
-    // Check against home planet
     const distToHome = Math.sqrt(
       Math.pow(x - this.basePlanet.x, 2) + 
       Math.pow(y - this.basePlanet.y, 2)
@@ -807,7 +828,6 @@ scanForPlanet() {
       validPosition = false
     }
 
-    // Check against all other planets
     for (const planet of this.planets) {
       const dist = Math.sqrt(
         Math.pow(x - planet.x, 2) + 
@@ -822,16 +842,15 @@ scanForPlanet() {
     attempts++
     
     if (validPosition) {
-      // Get rarity-based colors
       const rarity = this.getRarityColors()
       
-      // Add some color variation to the base colors
-      const colorVariation = () => Phaser.Math.Between(-20, 20)
+      // Add color variation for visual variety (stays within rarity theme)
+      const colorVariation = () => Phaser.Math.Between(-30, 30)
       
       const coreColor = Phaser.Display.Color.GetColor(
-        Phaser.Math.Clamp(((rarity.coreBase >> 16) & 0xFF) + colorVariation(), 0, 255),
-        Phaser.Math.Clamp(((rarity.coreBase >> 8) & 0xFF) + colorVariation(), 0, 255),
-        Phaser.Math.Clamp((rarity.coreBase & 0xFF) + colorVariation(), 0, 255)
+        Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation() - 40, 0, 255),
+        Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation() - 40, 0, 255),
+        Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation() - 40, 0, 255)
       )
       
       const ringColor = Phaser.Display.Color.GetColor(
@@ -840,11 +859,10 @@ scanForPlanet() {
         Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation(), 0, 255)
       )
 
-      // Generate name with rarity prefix and level
       const planetNumber = this.planets.length + 1
       const name = `${rarity.name} LV${level}`
 
-      this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, rarity.textColor)
+      this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, rarity.textColor, rarity)
     }
   }
 
@@ -854,22 +872,26 @@ scanForPlanet() {
 }
 
   addShip() {
-    const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
-    
-    // Apply current thruster upgrades to new ship
-    if (this.research.thrustersLevel > 0) {
-      const speedMultiplier = 1 + (this.research.thrustersLevel * 0.1)
-      newShip.applySpeedMultiplier(speedMultiplier)
-    }
-    
-    this.ships.push(newShip)
-    this.updateUICameraIgnoreList()
-    
-    // Update ship count in resource bar
-    if (this.resourceBar) {
-      this.resourceBar.updateShipCount(this.ships.length)
-    }
+  // Check if at ship limit
+  if (this.ships.length >= this.maxShips) {
+    console.log("Ship limit reached!")
+    return
   }
+
+  const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
+  
+  if (this.research.thrustersLevel > 0) {
+    const speedMultiplier = 1 + (this.research.thrustersLevel * 0.1)
+    newShip.applySpeedMultiplier(speedMultiplier)
+  }
+  
+  this.ships.push(newShip)
+  this.updateUICameraIgnoreList()
+  
+  if (this.resourceBar) {
+    this.resourceBar.updateShipCount(this.ships.length, this.maxShips)
+  }
+}
 
   updateUICameraIgnoreList() {
     const ignoreList = [

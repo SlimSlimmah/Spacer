@@ -130,7 +130,7 @@ class PlanetPopup {
     const popupHalfWidth = 75
     const popupHalfHeight = 60
     const clampedX = Phaser.Math.Clamp(screenX, popupHalfWidth, this.scene.scale.width - popupHalfWidth)
-    const clampedY = Phaser.Math.Clamp(screenY, popupHalfHeight, this.scene.scale.height - popupHalfHeight)
+    const clampedY = Phaser.Math.Clamp(screenY, popupHalfHeight + 40, this.scene.scale.height - popupHalfHeight) // +40 for resource bar
     
     this.container.setPosition(clampedX, clampedY)
     this.container.setVisible(true)
@@ -188,7 +188,6 @@ class PlanetPopup {
   }
 }
 
-// ResearchPanel class
 // ResearchPanel class
 class ResearchPanel {
   constructor(scene) {
@@ -380,7 +379,6 @@ class ResearchPanel {
   }
 }
 
-
 // DealershipPanel class
 class DealershipPanel {
   constructor(scene) {
@@ -428,6 +426,30 @@ class DealershipPanel {
 
     // Ship purchase option
     this.createShipItem('Basic Ship', 'Standard mining vessel', 0, -20)
+
+    // Click anywhere to close
+    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+      if (this.isVisible && !this.justOpened) {
+        const screenX = pointer.x
+        const screenY = pointer.y
+        
+        const panelCenterX = this.scene.scale.width / 2
+        const panelCenterY = this.scene.scale.height / 2
+        const halfWidth = panelWidth / 2
+        const halfHeight = panelHeight / 2
+        
+        const bounds = new Phaser.Geom.Rectangle(
+          panelCenterX - halfWidth,
+          panelCenterY - halfHeight,
+          panelWidth,
+          panelHeight
+        )
+        
+        if (!Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)) {
+          this.hide()
+        }
+      }
+    })
   }
 
   createShipItem(name, description, cost, yOffset) {
@@ -497,7 +519,107 @@ class DealershipPanel {
   }
 }
 
-
+// ResourceBar class
+class ResourceBar {
+  constructor(scene) {
+    this.scene = scene
+    this.resources = {} // Track revolutions by planet color
+    
+    // Create container fixed to screen
+    this.container = scene.add.container(0, 0)
+    this.container.setDepth(300)
+    this.container.setScrollFactor(0)
+    
+    const barHeight = 40
+    const barWidth = scene.scale.width
+    
+    // Background bar
+    this.bg = scene.add.graphics()
+    this.bg.fillStyle(0x0a0f1a, 0.95)
+    this.bg.fillRect(0, 0, barWidth, barHeight)
+    this.bg.lineStyle(2, 0x66ccff, 0.5)
+    this.bg.lineBetween(0, barHeight, barWidth, barHeight)
+    this.container.add(this.bg)
+    
+    // Container for resource items (will be updated dynamically)
+    this.resourceItems = []
+    
+    // Ship count (supply) - positioned on the right
+    this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2, 'SHIPS: 1', {
+      fontSize: '16px',
+      color: '#ffaa00',
+      fontStyle: 'bold'
+    })
+    this.shipCountText.setOrigin(1, 0.5)
+    this.container.add(this.shipCountText)
+    
+    this.update()
+  }
+  
+  addRevolution(planetColor) {
+    // Convert color to hex string for tracking
+    const colorKey = planetColor.toString(16).padStart(6, '0')
+    
+    if (!this.resources[colorKey]) {
+      this.resources[colorKey] = {
+        color: planetColor,
+        count: 0
+      }
+    }
+    
+    this.resources[colorKey].count++
+    this.update()
+  }
+  
+  updateShipCount(count) {
+    this.shipCountText.setText(`SHIPS: ${count}`)
+  }
+  
+  update() {
+    // Clear existing resource items
+    this.resourceItems.forEach(item => item.destroy())
+    this.resourceItems = []
+    
+    // Draw resource items
+    let xOffset = 20
+    const yCenter = 20
+    
+    const sortedResources = Object.entries(this.resources).sort((a, b) => b[1].count - a[1].count)
+    
+    for (const [colorKey, data] of sortedResources) {
+      // Colored dot
+      const dot = this.scene.add.graphics()
+      dot.fillStyle(data.color, 1)
+      dot.fillCircle(xOffset, yCenter, 6)
+      this.container.add(dot)
+      this.resourceItems.push(dot)
+      
+      // Count text
+      const countText = this.scene.add.text(xOffset + 12, yCenter, data.count.toString(), {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontStyle: 'bold'
+      })
+      countText.setOrigin(0, 0.5)
+      this.container.add(countText)
+      this.resourceItems.push(countText)
+      
+      xOffset += 50 + (data.count.toString().length * 10)
+    }
+  }
+  
+  resize(width) {
+    // Redraw background with new width
+    this.bg.clear()
+    this.bg.fillStyle(0x0a0f1a, 0.95)
+    this.bg.fillRect(0, 0, width, 40)
+    this.bg.lineStyle(2, 0x66ccff, 0.5)
+    this.bg.lineBetween(0, 40, width, 40)
+    
+    // Reposition ship count
+    this.shipCountText.setPosition(width - 20, 20)
+  }
+}
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -505,46 +627,50 @@ export default class GameScene extends Phaser.Scene {
   }
 
   create() {
-  // Detect if mobile
-  this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+    // Detect if mobile
+    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 
-  const cx = this.scale.width / 2
-  const cy = this.scale.height / 2
+    const cx = this.scale.width / 2
+    const cy = this.scale.height / 2
 
-  // Research state
-  this.research = {
-    planetDetection: false,
-    thrustersLevel: 0
-  }
+    // Research state
+    this.research = {
+      planetDetection: false,
+      thrustersLevel: 0
+    }
 
-  // First planet (blue) with HOME PLANET nameplate
-  this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
+    // First planet (blue) with HOME PLANET nameplate
+    this.basePlanet = new BasePlanet(this, cx, cy, 0x2a4a6e, 0x66ccff, 'HOME PLANET')
 
-  // Planets array (excluding home planet)
-  this.planets = []
+    // Planets array (excluding home planet)
+    this.planets = []
 
-  // Create UI camera BEFORE creating ships and popup
-  this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
-  this.uiCamera.setScroll(0, 0)
+    // Create UI camera BEFORE creating ships and popup
+    this.uiCamera = this.cameras.add(0, 0, this.scale.width, this.scale.height)
+    this.uiCamera.setScroll(0, 0)
 
-  // Ships array
-  this.ships = []
-  this.addShip()
+    // Create resource bar FIRST
+    this.resourceBar = new ResourceBar(this)
+    this.cameras.main.ignore([this.resourceBar.container])
 
-  // Create planet popup AFTER UI camera exists
-  this.planetPopup = new PlanetPopup(this)
-  
-  // CRITICAL: Make main camera ignore popup, only UI camera renders it
-  this.cameras.main.ignore([this.planetPopup.container])
+    // Ships array
+    this.ships = []
+    this.addShip()
 
-// Create research panel
-this.researchPanel = new ResearchPanel(this)
+    // Create planet popup AFTER UI camera exists
+    this.planetPopup = new PlanetPopup(this)
+    
+    // CRITICAL: Make main camera ignore popup, only UI camera renders it
+    this.cameras.main.ignore([this.planetPopup.container])
 
-  // Create dealership panel
-  this.dealershipPanel = new DealershipPanel(this)
+    // Create research panel
+    this.researchPanel = new ResearchPanel(this)
+    
+    // Create dealership panel
+    this.dealershipPanel = new DealershipPanel(this)
 
-  // Second planet (gray) with PLANET1 nameplate
-  this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
+    // Second planet (gray) with PLANET1 nameplate
+    this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
 
     // Camera pan setup
     this.isPanning = false
@@ -568,397 +694,366 @@ this.researchPanel = new ResearchPanel(this)
       this.isPanning = false
     })
 
-// Mouse wheel zoom - update the range to 0.2 - 3
-this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-  const zoomAmount = deltaY > 0 ? -0.1 : 0.1
-  const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.2, 3)
-  this.cameras.main.setZoom(newZoom)
-})
+    // Mouse wheel zoom - zoom range: 0.2 - 3
+    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+      const zoomAmount = deltaY > 0 ? -0.1 : 0.1
+      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.2, 3)
+      this.cameras.main.setZoom(newZoom)
+    })
     
     // UI buttons
-  this.createZoomButtons()
-  //this.createAddShipButton()
-  this.createScanButton() // Will be hidden by default
-  this.createResearchButton()
-  this.createDealershipButton()
+    this.createZoomButtons()
+    this.createScanButton()
+    this.createResearchButton()
+    this.createDealershipButton()
 
-  // Hide scan button until Planet Detection is researched
-  this.scanBtn.setVisible(false)
+    // Hide scan button until Planet Detection is researched
+    this.scanBtn.setVisible(false)
 
-  // Handle window resize
-  this.scale.on('resize', this.handleResize, this)
-}
-
-
-createDealershipButton() {
-  const fontSize = this.isMobile ? '14px' : '14px'
-  const mobileButtonRow2 = this.isMobile ? 130 : 100
-
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#ffaa00',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    // Handle window resize
+    this.scale.on('resize', this.handleResize, this)
   }
-
-  if (this.isMobile) {
-    this.dealershipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'DEALERSHIP', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.dealershipBtn = this.add.text(this.scale.width - 70, 150, 'DEALERSHIP', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-  }
-
-  this.cameras.main.ignore([this.dealershipBtn])
-
-  this.dealershipBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.dealershipPanel.show()
-  })
-}
-
-
-
-
 
   addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
-  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
-  this.planets.push(planet)
+    const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
+    this.planets.push(planet)
 
-  // Set up planet click handler for travel
-  planet.setOnClick((clickedPlanet) => {
-    // Send first idle ship to this planet
-    const idleShip = this.ships.find(ship => ship.state === 'IDLE')
-    if (idleShip) {
-      idleShip.travelTo(clickedPlanet)
-    }
-  })
+    // Set up planet click handler for travel
+    planet.setOnClick((clickedPlanet) => {
+      // Send first idle ship to this planet
+      const idleShip = this.ships.find(ship => ship.state === 'IDLE')
+      if (idleShip) {
+        idleShip.travelTo(clickedPlanet)
+      }
+    })
 
-  // Set up planet hold handler to show popup at hold location
-  planet.setOnHold((heldPlanet, pointerX, pointerY) => {
-    this.planetPopup.show(heldPlanet, pointerX, pointerY)
-  })
+    // Set up planet hold handler to show popup at hold location
+    planet.setOnHold((heldPlanet, pointerX, pointerY) => {
+      this.planetPopup.show(heldPlanet, pointerX, pointerY)
+    })
 
-  this.updateUICameraIgnoreList()
-}
+    this.updateUICameraIgnoreList()
+  }
 
-scanForPlanet() {
-  let x, y, coreRadius
-  let validPosition = false
-  let attempts = 0
-  const maxAttempts = 50
+  scanForPlanet() {
+    let x, y, coreRadius
+    let validPosition = false
+    let attempts = 0
+    const maxAttempts = 50
 
-  // Keep trying to find a non-overlapping position
-  while (!validPosition && attempts < maxAttempts) {
-    // Random position around home planet
-    const angle = Math.random() * Math.PI * 2
-    const distance = Phaser.Math.Between(200, 400)
-    x = this.basePlanet.x + Math.cos(angle) * distance
-    y = this.basePlanet.y + Math.sin(angle) * distance
+    // Keep trying to find a non-overlapping position
+    while (!validPosition && attempts < maxAttempts) {
+      // Random position around home planet
+      const angle = Math.random() * Math.PI * 2
+      const distance = Phaser.Math.Between(200, 400)
+      x = this.basePlanet.x + Math.cos(angle) * distance
+      y = this.basePlanet.y + Math.sin(angle) * distance
 
-    // Random size
-    coreRadius = Phaser.Math.Between(50, 90)
+      // Random size
+      coreRadius = Phaser.Math.Between(50, 90)
 
-    // Check if this position overlaps with any existing planet
-    validPosition = true
-    const minDistance = coreRadius + 100 // Buffer space
+      // Check if this position overlaps with any existing planet
+      validPosition = true
+      const minDistance = coreRadius + 100 // Buffer space
 
-    // Check against home planet
-    const distToHome = Math.sqrt(
-      Math.pow(x - this.basePlanet.x, 2) + 
-      Math.pow(y - this.basePlanet.y, 2)
-    )
-    if (distToHome < this.basePlanet.coreRadius + minDistance) {
-      validPosition = false
-    }
-
-    // Check against all other planets
-    for (const planet of this.planets) {
-      const dist = Math.sqrt(
-        Math.pow(x - planet.x, 2) + 
-        Math.pow(y - planet.y, 2)
+      // Check against home planet
+      const distToHome = Math.sqrt(
+        Math.pow(x - this.basePlanet.x, 2) + 
+        Math.pow(y - this.basePlanet.y, 2)
       )
-      if (dist < planet.coreRadius + minDistance) {
+      if (distToHome < this.basePlanet.coreRadius + minDistance) {
         validPosition = false
-        break
+      }
+
+      // Check against all other planets
+      for (const planet of this.planets) {
+        const dist = Math.sqrt(
+          Math.pow(x - planet.x, 2) + 
+          Math.pow(y - planet.y, 2)
+        )
+        if (dist < planet.coreRadius + minDistance) {
+          validPosition = false
+          break
+        }
+      }
+
+      attempts++
+    }
+
+    if (!validPosition) {
+      console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
+      return
+    }
+
+    // Generate coordinated colors - same base color for both core and ring
+    const baseColor = Phaser.Display.Color.RandomRGB()
+    const coreColor = baseColor.color
+    
+    // Make ring color a brighter version of core color
+    const ringColor = Phaser.Display.Color.GetColor(
+      Math.min(255, baseColor.red + 40),
+      Math.min(255, baseColor.green + 40),
+      Math.min(255, baseColor.blue + 40)
+    )
+
+    // Generate name
+    const planetNumber = this.planets.length + 1
+    const name = `PLANET${planetNumber}`
+
+    this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
+  }
+
+  addShip() {
+    const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
+    
+    // Apply current thruster upgrades to new ship
+    if (this.research.thrustersLevel > 0) {
+      const speedMultiplier = 1 + (this.research.thrustersLevel * 0.1)
+      newShip.applySpeedMultiplier(speedMultiplier)
+    }
+    
+    this.ships.push(newShip)
+    this.updateUICameraIgnoreList()
+    
+    // Update ship count in resource bar
+    if (this.resourceBar) {
+      this.resourceBar.updateShipCount(this.ships.length)
+    }
+  }
+
+  updateUICameraIgnoreList() {
+    const ignoreList = [
+      this.basePlanet.graphics, 
+      this.basePlanet.hitZone,
+      this.basePlanet.nameText
+    ]
+
+    // Add all planets to ignore list
+    this.planets.forEach(planet => {
+      ignoreList.push(planet.graphics)
+      ignoreList.push(planet.hitZone)
+      ignoreList.push(planet.nameText)
+    })
+
+    // Add all ship graphics to ignore list
+    this.ships.forEach(ship => {
+      ignoreList.push(ship.graphics)
+      ignoreList.push(ship.trailGraphics)
+      ignoreList.push(ship.statusText)
+      ignoreList.push(ship.progressBarBg)
+      ignoreList.push(ship.progressBarFill)
+    })
+
+    this.uiCamera.ignore(ignoreList)
+  }
+
+  handleResize(gameSize) {
+    const mobileTopPadding = this.isMobile ? 60 : 20
+    const mobileButtonRow2 = this.isMobile ? 130 : 100
+    const mobileButtonRow3 = this.isMobile ? 200 : 170
+
+    // Resize resource bar
+    if (this.resourceBar) {
+      this.resourceBar.resize(gameSize.width)
+    }
+
+    // Reposition UI elements on resize
+    if (this.zoomInBtn && this.zoomOutBtn) {
+      if (this.isMobile) {
+        this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
+        this.zoomInBtn.setPosition(gameSize.width / 2 + 70, mobileTopPadding)
+      } else {
+        this.zoomInBtn.setPosition(gameSize.width - 70, 20)
+        this.zoomOutBtn.setPosition(gameSize.width - 70, 85)
       }
     }
 
-    attempts++
-  }
+    if (this.dealershipBtn) {
+      if (this.isMobile) {
+        this.dealershipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
+      } else {
+        this.dealershipBtn.setPosition(gameSize.width - 70, 150)
+      }
+    }
 
-  if (!validPosition) {
-    console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
-    return
-  }
+    if (this.scanBtn) {
+      if (this.isMobile) {
+        this.scanBtn.setPosition(gameSize.width / 2 + 70, mobileButtonRow2)
+      } else {
+        this.scanBtn.setPosition(gameSize.width - 70, 215)
+      }
+    }
 
-  // Generate coordinated colors - same base color for both core and ring
-  const baseColor = Phaser.Display.Color.RandomRGB()
-  const coreColor = baseColor.color
-  
-  // Make ring color a brighter version of core color
-  const ringColor = Phaser.Display.Color.GetColor(
-    Math.min(255, baseColor.red + 40),
-    Math.min(255, baseColor.green + 40),
-    Math.min(255, baseColor.blue + 40)
-  )
-
-  // Generate name
-  const planetNumber = this.planets.length + 1
-  const name = `PLANET${planetNumber}`
-
-  this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
-}
-
-createResearchButton() {
-  const fontSize = this.isMobile ? '16px' : '14px'
-  const mobileButtonRow3 = this.isMobile ? 200 : 170
-
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#66ccff',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
-  }
-
-  if (this.isMobile) {
-    this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.researchBtn = this.add.text(this.scale.width - 70, 280, 'RESEARCH', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-  }
-
-  this.cameras.main.ignore([this.researchBtn])
-
-  this.researchBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.researchPanel.show()
-  })
-}
-
-addShip() {
-  const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)
-  
-  // Apply current thruster upgrades to new ship
-  if (this.research.thrustersLevel > 0) {
-    const speedMultiplier = 1 + (this.research.thrustersLevel * 0.1)
-    newShip.applySpeedMultiplier(speedMultiplier)
-  }
-  
-  this.ships.push(newShip)
-  this.updateUICameraIgnoreList()
-}
-
-updateUICameraIgnoreList() {
-  const ignoreList = [
-    this.basePlanet.graphics, 
-    this.basePlanet.hitZone,
-    this.basePlanet.nameText
-  ]
-
-  // Add all planets to ignore list
-  this.planets.forEach(planet => {
-    ignoreList.push(planet.graphics)
-    ignoreList.push(planet.hitZone)
-    ignoreList.push(planet.nameText)
-  })
-
-  // Add all ship graphics to ignore list
-  this.ships.forEach(ship => {
-    ignoreList.push(ship.graphics)
-    ignoreList.push(ship.trailGraphics)
-    ignoreList.push(ship.statusText)
-    ignoreList.push(ship.progressBarBg)
-    ignoreList.push(ship.progressBarFill)
-  })
-
-  this.uiCamera.ignore(ignoreList)
-}
-
-handleResize(gameSize) {
-  const mobileTopPadding = this.isMobile ? 60 : 20
-  const mobileButtonRow2 = this.isMobile ? 130 : 100
-  const mobileButtonRow3 = this.isMobile ? 200 : 170
-
-  if (this.zoomInBtn && this.zoomOutBtn) {
-    if (this.isMobile) {
-      this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
-      this.zoomInBtn.setPosition(gameSize.width / 2 + 70, mobileTopPadding)
-    } else {
-      this.zoomInBtn.setPosition(gameSize.width - 70, 20)
-      this.zoomOutBtn.setPosition(gameSize.width - 70, 85)
+    if (this.researchBtn) {
+      if (this.isMobile) {
+        this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
+      } else {
+        this.researchBtn.setPosition(gameSize.width - 70, 280)
+      }
     }
   }
-
-  if (this.dealershipBtn) {
-    if (this.isMobile) {
-      this.dealershipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
-    } else {
-      this.dealershipBtn.setPosition(gameSize.width - 70, 150)
-    }
-  }
-
-  if (this.scanBtn) {
-    if (this.isMobile) {
-      this.scanBtn.setPosition(gameSize.width / 2 + 70, mobileButtonRow2)
-    } else {
-      this.scanBtn.setPosition(gameSize.width - 70, 215)
-    }
-  }
-
-  if (this.researchBtn) {
-    if (this.isMobile) {
-      this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
-    } else {
-      this.researchBtn.setPosition(gameSize.width - 70, 280)
-    }
-  }
-}
-  
-
 
   createZoomButtons() {
-  // Larger buttons for mobile
-  const buttonSize = this.isMobile ? 60 : 50
-  const fontSize = this.isMobile ? '40px' : '32px'
-  
-  // Safe area padding for mobile (notches, status bars, etc.)
-  const mobileTopPadding = this.isMobile ? 60 : 20
+    // Larger buttons for mobile
+    const buttonSize = this.isMobile ? 60 : 50
+    const fontSize = this.isMobile ? '40px' : '32px'
+    
+    // Safe area padding for mobile (notches, status bars, etc.)
+    const mobileTopPadding = this.isMobile ? 60 : 20
 
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#66ccff',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 15, y: 10 },
-    fixedWidth: buttonSize,
-    fixedHeight: buttonSize,
-    align: 'center'
+    const buttonStyle = {
+      fontSize: fontSize,
+      color: '#66ccff',
+      backgroundColor: '#1a2a3a',
+      padding: { x: 15, y: 10 },
+      fixedWidth: buttonSize,
+      fixedHeight: buttonSize,
+      align: 'center'
+    }
+
+    // Position buttons differently for mobile vs desktop
+    if (this.isMobile) {
+      // Mobile: center top with safe padding, side by side
+      this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+        .setScrollFactor(0) // Extra insurance to keep it fixed
+
+      this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, mobileTopPadding, '+', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+        .setScrollFactor(0) // Extra insurance to keep it fixed
+    } else {
+      // Desktop: top right, stacked vertically
+      this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+
+      this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '−', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
+
+    // Make buttons only visible to UI camera
+    this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
+
+    // Use pointerup instead of pointerdown for better mobile response
+    // Zoom range: 0.2 to 3
+    this.zoomInBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
+      this.cameras.main.setZoom(newZoom)
+    })
+
+    this.zoomOutBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.2, 3)
+      this.cameras.main.setZoom(newZoom)
+    })
   }
 
-  // Position buttons differently for mobile vs desktop
-  if (this.isMobile) {
-    // Mobile: center top with safe padding, side by side
-    this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0) // Extra insurance to keep it fixed
+  createScanButton() {
+    const fontSize = this.isMobile ? '18px' : '14px'
+    const mobileButtonRow2 = this.isMobile ? 130 : 100
 
-    this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, mobileTopPadding, '+', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0) // Extra insurance to keep it fixed
-  } else {
-    // Desktop: top right, stacked vertically
-    this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
+    const buttonStyle = {
+      fontSize: fontSize,
+      color: '#00ff00',
+      backgroundColor: '#1a2a3a',
+      padding: { x: 8, y: 6 },
+      align: 'center'
+    }
 
-    this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '−', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
+    if (this.isMobile) {
+      this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+        .setScrollFactor(0)
+    } else {
+      this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
+
+    this.cameras.main.ignore([this.scanBtn])
+
+    this.scanBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.scanForPlanet()
+    })
   }
 
-  // Make buttons only visible to UI camera
-  this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
+  createResearchButton() {
+    const fontSize = this.isMobile ? '16px' : '14px'
+    const mobileButtonRow3 = this.isMobile ? 200 : 170
 
-  // Use pointerup instead of pointerdown for better mobile response
-  // Zoom range: 0.2 to 3 (was 0.5 to 3)
-  this.zoomInBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
-    this.cameras.main.setZoom(newZoom)
-  })
+    const buttonStyle = {
+      fontSize: fontSize,
+      color: '#66ccff',
+      backgroundColor: '#1a2a3a',
+      padding: { x: 8, y: 6 },
+      align: 'center'
+    }
 
-  this.zoomOutBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.2, 3)
-    this.cameras.main.setZoom(newZoom)
-  })
-}
+    if (this.isMobile) {
+      this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+        .setScrollFactor(0)
+    } else {
+      this.researchBtn = this.add.text(this.scale.width - 70, 280, 'RESEARCH', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
 
-  createAddShipButton() {
-  const buttonSize = this.isMobile ? 60 : 50
-  const fontSize = this.isMobile ? '18px' : '14px'
-  const mobileButtonRow2 = this.isMobile ? 130 : 100
+    this.cameras.main.ignore([this.researchBtn])
 
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#ffaa00',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    this.researchBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.researchPanel.show()
+    })
   }
 
-  if (this.isMobile) {
-    this.addShipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'ADD SHIP', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.addShipBtn = this.add.text(this.scale.width - 70, 150, 'ADD SHIP', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
+  createDealershipButton() {
+    const fontSize = this.isMobile ? '14px' : '14px'
+    const mobileButtonRow2 = this.isMobile ? 130 : 100
+
+    const buttonStyle = {
+      fontSize: fontSize,
+      color: '#ffaa00',
+      backgroundColor: '#1a2a3a',
+      padding: { x: 8, y: 6 },
+      align: 'center'
+    }
+
+    if (this.isMobile) {
+      this.dealershipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'DEALERSHIP', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive()
+        .setDepth(100)
+        .setScrollFactor(0)
+    } else {
+      this.dealershipBtn = this.add.text(this.scale.width - 70, 150, 'DEALERSHIP', buttonStyle)
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(100)
+    }
+
+    this.cameras.main.ignore([this.dealershipBtn])
+
+    this.dealershipBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.dealershipPanel.show()
+    })
   }
-
-  this.cameras.main.ignore([this.addShipBtn])
-
-  this.addShipBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.addShip()
-  })
-}
-
-createScanButton() {
-  const fontSize = this.isMobile ? '18px' : '14px'
-  const mobileButtonRow2 = this.isMobile ? 130 : 100
-
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#00ff00',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
-  }
-
-  if (this.isMobile) {
-    this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-  }
-
-  this.cameras.main.ignore([this.scanBtn])
-
-  this.scanBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.scanForPlanet()
-  })
-}
 
   update() {
     this.basePlanet.update()

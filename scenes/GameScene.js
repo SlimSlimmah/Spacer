@@ -847,114 +847,122 @@ export default class GameScene extends Phaser.Scene {
     this.uiCamera.ignore(ignoreList)
   }
 
-  handleResize(gameSize) {
-    const mobileTopPadding = this.isMobile ? 60 : 20
-    const mobileButtonRow2 = this.isMobile ? 130 : 100
-    const mobileButtonRow3 = this.isMobile ? 200 : 170
 
-    // Resize resource bar
-    if (this.resourceBar) {
-      this.resourceBar.resize(gameSize.width)
-    }
 
-    // Reposition UI elements on resize
-    if (this.zoomInBtn && this.zoomOutBtn) {
-      if (this.isMobile) {
-        this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
-        this.zoomInBtn.setPosition(gameSize.width / 2 + 70, mobileTopPadding)
-      } else {
-        this.zoomInBtn.setPosition(gameSize.width - 70, 20)
-        this.zoomOutBtn.setPosition(gameSize.width - 70, 85)
-      }
-    }
 
-    if (this.dealershipBtn) {
-      if (this.isMobile) {
-        this.dealershipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
-      } else {
-        this.dealershipBtn.setPosition(gameSize.width - 70, 150)
-      }
-    }
+handleResize(gameSize) {
+  const mobileTopPadding = this.isMobile ? 70 : 50
+  const mobileButtonRow2 = this.isMobile ? 140 : 110
+  const mobileButtonRow3 = this.isMobile ? 210 : 180
 
-    if (this.scanBtn) {
-      if (this.isMobile) {
-        this.scanBtn.setPosition(gameSize.width / 2 + 70, mobileButtonRow2)
-      } else {
-        this.scanBtn.setPosition(gameSize.width - 70, 215)
-      }
-    }
-
-    if (this.researchBtn) {
-      if (this.isMobile) {
-        this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
-      } else {
-        this.researchBtn.setPosition(gameSize.width - 70, 280)
-      }
-    }
+  // Resize resource bar
+  if (this.resourceBar) {
+    this.resourceBar.resize(gameSize.width)
   }
 
-  createZoomButtons() {
-    // Larger buttons for mobile
-    const buttonSize = this.isMobile ? 60 : 50
-    const fontSize = this.isMobile ? '40px' : '32px'
-    
-    // Safe area padding for mobile (notches, status bars, etc.)
-    const mobileTopPadding = this.isMobile ? 60 : 20
-
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#66ccff',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 15, y: 10 },
-      fixedWidth: buttonSize,
-      fixedHeight: buttonSize,
-      align: 'center'
-    }
-
-    // Position buttons differently for mobile vs desktop
+  // Reposition UI elements on resize
+  if (this.zoomInBtn && this.zoomOutBtn) {
     if (this.isMobile) {
-      // Mobile: center top with safe padding, side by side
-      this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-        .setScrollFactor(0) // Extra insurance to keep it fixed
-
-      this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, mobileTopPadding, '+', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-        .setScrollFactor(0) // Extra insurance to keep it fixed
+      this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
+      this.zoomInBtn.setPosition(gameSize.width / 2 + 70, mobileTopPadding)
     } else {
-      // Desktop: top right, stacked vertically
-      this.zoomInBtn = this.add.text(this.scale.width - 70, 20, '+', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-
-      this.zoomOutBtn = this.add.text(this.scale.width - 70, 85, '−', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
+      this.zoomInBtn.setPosition(gameSize.width - 70, 50)
+      this.zoomOutBtn.setPosition(gameSize.width - 70, 115)
     }
-
-    // Make buttons only visible to UI camera
-    this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
-
-    // Use pointerup instead of pointerdown for better mobile response
-    // Zoom range: 0.2 to 3
-    this.zoomInBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-
-    this.zoomOutBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.2, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
   }
+
+  if (this.dealershipBtn) {
+    if (this.isMobile) {
+      this.dealershipBtn.setPosition(gameSize.width / 2 - 70, mobileButtonRow2)
+    } else {
+      this.dealershipBtn.setPosition(gameSize.width - 70, 180)
+    }
+  }
+
+  if (this.scanBtn) {
+    if (this.isMobile) {
+      this.scanBtn.setPosition(gameSize.width / 2 + 70, mobileButtonRow2)
+    } else {
+      this.scanBtn.setPosition(gameSize.width - 70, 245)
+    }
+  }
+
+  if (this.researchBtn) {
+    if (this.isMobile) {
+      this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
+    } else {
+      this.researchBtn.setPosition(gameSize.width - 70, 310)
+    }
+  }
+}
+
+
+
+
+
+createZoomButtons() {
+  // Larger buttons for mobile
+  const buttonSize = this.isMobile ? 60 : 50
+  const fontSize = this.isMobile ? '40px' : '32px'
+  
+  // Position below the 40px resource bar
+  const mobileTopPadding = this.isMobile ? 70 : 50
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 15, y: 10 },
+    fixedWidth: buttonSize,
+    fixedHeight: buttonSize,
+    align: 'center'
+  }
+
+  // Position buttons differently for mobile vs desktop
+  if (this.isMobile) {
+    // Mobile: center, below resource bar
+    this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+
+    this.zoomInBtn = this.add.text(this.scale.width / 2 + 70, mobileTopPadding, '+', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    // Desktop: top right, below resource bar
+    this.zoomInBtn = this.add.text(this.scale.width - 70, 50, '+', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+
+    this.zoomOutBtn = this.add.text(this.scale.width - 70, 115, '−', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  // Make buttons only visible to UI camera
+  this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
+
+  // Use pointerup instead of pointerdown for better mobile response
+  this.zoomInBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+
+  this.zoomOutBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom - 0.2, 0.2, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+}
+
+
 
   createScanButton() {
     const fontSize = this.isMobile ? '18px' : '14px'
@@ -1022,38 +1030,111 @@ export default class GameScene extends Phaser.Scene {
     })
   }
 
-  createDealershipButton() {
-    const fontSize = this.isMobile ? '14px' : '14px'
-    const mobileButtonRow2 = this.isMobile ? 130 : 100
 
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#ffaa00',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 6 },
-      align: 'center'
-    }
 
-    if (this.isMobile) {
-      this.dealershipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'DEALERSHIP', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-        .setScrollFactor(0)
-    } else {
-      this.dealershipBtn = this.add.text(this.scale.width - 70, 150, 'DEALERSHIP', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
 
-    this.cameras.main.ignore([this.dealershipBtn])
+createDealershipButton() {
+  const fontSize = this.isMobile ? '14px' : '14px'
+  const mobileButtonRow2 = this.isMobile ? 140 : 110
 
-    this.dealershipBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.dealershipPanel.show()
-    })
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#ffaa00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
   }
+
+  if (this.isMobile) {
+    this.dealershipBtn = this.add.text(this.scale.width / 2 - 70, mobileButtonRow2, 'DEALERSHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.dealershipBtn = this.add.text(this.scale.width - 70, 180, 'DEALERSHIP', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.dealershipBtn])
+
+  this.dealershipBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.dealershipPanel.show()
+  })
+}
+
+createScanButton() {
+  const fontSize = this.isMobile ? '18px' : '14px'
+  const mobileButtonRow2 = this.isMobile ? 140 : 110
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#00ff00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.scanBtn = this.add.text(this.scale.width - 70, 245, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.scanBtn])
+
+  this.scanBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.scanForPlanet()
+  })
+}
+
+createResearchButton() {
+  const fontSize = this.isMobile ? '16px' : '14px'
+  const mobileButtonRow3 = this.isMobile ? 210 : 180
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.researchBtn = this.add.text(this.scale.width - 70, 310, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.researchBtn])
+
+  this.researchBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.researchPanel.show()
+  })
+}
+
+
+
+
 
   update() {
     this.basePlanet.update()

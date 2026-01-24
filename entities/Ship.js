@@ -616,9 +616,34 @@ update() {
     this.draw()
   }
 
-  draw() {
-    this.drawMiningParticles()
+
+
+draw() {
+  this.drawMiningParticles()
+}
+
+drawMiningParticles() {
+  this.graphics.clear()
+  
+  // Draw ship with outline
+  this.graphics.lineStyle(1, 0xffffff, 0.8) // Thin white outline
+  this.graphics.fillStyle(this.shipColor, 1)
+  this.graphics.fillCircle(this.x, this.y, this.shipRadius)
+  this.graphics.strokeCircle(this.x, this.y, this.shipRadius)
+  
+  // Draw mining particles
+  if (this.state === 'MINING') {
+    for (const p of this.miningParticles) {
+      const alpha = p.life * 0.8
+      // Use planet's ring color for particles
+      this.graphics.fillStyle(this.currentPlanet.ringColor, alpha)
+      this.graphics.fillCircle(p.x, p.y, p.size)
+    }
   }
+}
+
+
+
 
   destroy() {
     this.graphics.destroy()

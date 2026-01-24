@@ -32,92 +32,93 @@ class RingLayer {
 }
 
 export default class BasePlanet {
-  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70) {
-    this.scene = scene
-    this.x = x
-    this.y = y
-    this.coreColor = coreColor
-    this.ringColor = ringColor
-    this.name = name
-    this.onClickCallback = null
-    this.onHoldCallback = null
-    
-    this.graphics = scene.add.graphics()
-    this.graphics.setDepth(1)
-    this.segments = 72
-
-    // Core (configurable size)
-    this.coreRadius = coreRadius
-
-    // Only 2 reactive rings, positioned at coreRadius
-    this.rings = [
-      new RingLayer(this.coreRadius, this.segments),
-      new RingLayer(this.coreRadius, this.segments)
-    ]
-
-    this.hitZone = scene.add.circle(x, y, coreRadius + 50)
-    this.hitZone.setInteractive({ useHandCursor: true })
-    
-    // Hold detection
-this.holdStartTime = 0
-this.isHolding = false
-this.holdPointerX = 0
-this.holdPointerY = 0
-
-this.hitZone.on('pointerdown', (pointer) => {
-  this.holdStartTime = Date.now()
-  this.isHolding = true
+  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70, textColor = '#ffffff') {
+  this.scene = scene
+  this.x = x
+  this.y = y
+  this.coreColor = coreColor
+  this.ringColor = ringColor
+  this.name = name
+  this.textColor = textColor
+  this.onClickCallback = null
+  this.onHoldCallback = null
   
-  // Store world coordinates of where user clicked
-  this.holdPointerX = pointer.worldX
-  this.holdPointerY = pointer.worldY
-  
-  this.triggerWave()
-  
-  // Check for hold every 100ms
-  this.holdCheckInterval = this.scene.time.addEvent({
-    delay: 100,
-    callback: () => {
-      if (this.isHolding) {
-        const holdDuration = Date.now() - this.holdStartTime
-        if (holdDuration >= 500 && this.onHoldCallback) {
-          this.onHoldCallback(this, this.holdPointerX, this.holdPointerY)
-          this.isHolding = false
-          this.holdCheckInterval.remove()
-        }
-      }
-    },
-    loop: true
-  })
-})
+  this.graphics = scene.add.graphics()
+  this.graphics.setDepth(1)
+  this.segments = 72
 
-this.hitZone.on('pointerup', () => {
-  if (this.isHolding) {
-    const holdDuration = Date.now() - this.holdStartTime
-    if (holdDuration < 500 && this.onClickCallback) {
-      this.onClickCallback(this)
-    }
-  }
+  // Core (configurable size)
+  this.coreRadius = coreRadius
+
+  // Only 2 reactive rings, positioned at coreRadius
+  this.rings = [
+    new RingLayer(this.coreRadius, this.segments),
+    new RingLayer(this.coreRadius, this.segments)
+  ]
+
+  this.hitZone = scene.add.circle(x, y, coreRadius + 50)
+  this.hitZone.setInteractive({ useHandCursor: true })
+  
+  // Hold detection
+  this.holdStartTime = 0
   this.isHolding = false
-  if (this.holdCheckInterval) {
-    this.holdCheckInterval.remove()
-  }
-})
+  this.holdPointerX = 0
+  this.holdPointerY = 0
 
-    // Nameplate
-    if (this.name) {
-      this.nameText = scene.add.text(this.x, this.y - this.coreRadius - 20, this.name, {
-        fontSize: '16px',
-        color: '#ffffff',
-        backgroundColor: '#000000',
-        padding: { x: 8, y: 4 }
-      })
-      this.nameText.setOrigin(0.5)
-      this.nameText.setDepth(2)
+  this.hitZone.on('pointerdown', (pointer) => {
+    this.holdStartTime = Date.now()
+    this.isHolding = true
+    
+    // Store world coordinates of where user clicked
+    this.holdPointerX = pointer.worldX
+    this.holdPointerY = pointer.worldY
+    
+    this.triggerWave()
+    
+    // Check for hold every 100ms
+    this.holdCheckInterval = this.scene.time.addEvent({
+      delay: 100,
+      callback: () => {
+        if (this.isHolding) {
+          const holdDuration = Date.now() - this.holdStartTime
+          if (holdDuration >= 500 && this.onHoldCallback) {
+            this.onHoldCallback(this, this.holdPointerX, this.holdPointerY)
+            this.isHolding = false
+            this.holdCheckInterval.remove()
+          }
+        }
+      },
+      loop: true
+    })
+  })
+
+  this.hitZone.on('pointerup', () => {
+    if (this.isHolding) {
+      const holdDuration = Date.now() - this.holdStartTime
+      if (holdDuration < 500 && this.onClickCallback) {
+        this.onClickCallback(this)
+      }
     }
+    this.isHolding = false
+    if (this.holdCheckInterval) {
+      this.holdCheckInterval.remove()
+    }
+  })
 
-    this.draw()
+  // Nameplate with colored text
+  if (this.name) {
+    this.nameText = scene.add.text(this.x, this.y - this.coreRadius - 20, this.name, {
+      fontSize: '16px',
+      color: this.textColor,
+      backgroundColor: '#000000',
+      padding: { x: 8, y: 4 }
+    })
+    this.nameText.setOrigin(0.5)
+    this.nameText.setDepth(2)
   }
+
+  this.draw()
+}
 
   setOnClick(callback) {
     this.onClickCallback = callback

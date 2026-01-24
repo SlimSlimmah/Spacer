@@ -61,86 +61,246 @@ export default class Ship {
     this.travelDuration = this.baseTravelDuration / multiplier
   }
 
-  travelTo(targetPlanet) {
-    if (this.state !== 'IDLE' && this.state !== 'ORBITING') return
+// Update the travelTo method to add initial trail point
+travelTo(targetPlanet) {
+  if (this.state !== 'IDLE' && this.state !== 'ORBITING') return
 
-    this.state = 'SPIRALING'
-    this.statusText.setText('TRAVELING')
-    this.assignedPlanet = targetPlanet
-    this.hideProgressBar()
-    this.trailPoints = [] // Clear trail
-
-    // Change ship color to match planet
-    this.shipColor = targetPlanet.ringColor
-
-    // Calculate current distance and angle relative to target planet
-    const dx = this.x - targetPlanet.x
-    const dy = this.y - targetPlanet.y
-    const startDistance = Math.sqrt(dx * dx + dy * dy)
-    const startAngle = Math.atan2(dy, dx)
-
-    // Set up spiral - start from current position relative to target
-    this.spiralCenter = { x: targetPlanet.x, y: targetPlanet.y }
-    this.spiralRadius = startDistance
-    this.spiralAngle = startAngle
-    
-    // Tween the spiral radius down to the orbit radius
-    this.scene.tweens.add({
-      targets: this,
-      spiralRadius: targetPlanet.coreRadius,
-      duration: this.travelDuration,
-      ease: 'Power2',
-      onUpdate: () => {
-        // Rotate while spiraling in
-        this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
-        
-        // Calculate position on spiral
-        this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
-        this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
-        
-        // Add trail point
-        this.addTrailPoint(this.x, this.y)
-        
-        this.statusText.setPosition(this.x, this.y - 15)
-        this.draw()
-      },
-onComplete: () => {
-  // Arrived at target planet
-  this.angle = this.spiralAngle
-  this.currentPlanet = targetPlanet
-  this.trailPoints = [] // Clear trail on arrival
-  this.updateTrail() // Clear trail graphics
+  this.state = 'SPIRALING'
+  this.statusText.setText('TRAVELING')
+  this.assignedPlanet = targetPlanet
+  this.hideProgressBar()
+  this.trailPoints = []
   
-  // Check if this is the home planet or mining planet
-  if (targetPlanet === this.homePlanet) {
-    // Orbit once at home, then return to mining (no label)
-    this.state = 'ORBITING'
-    this.statusText.setVisible(false)
-    const startAngle = this.angle
-    
-    // Wait for one full orbit
-    this.orbitCheckInterval = this.scene.time.addEvent({
-      delay: 100,
-      callback: () => {
-        const angleDiff = Math.abs(this.angle - startAngle)
-        // Check if completed roughly one orbit (2*PI radians)
-        if (angleDiff > Math.PI * 2 - 0.2) {
-          this.orbitCheckInterval.remove()
-          // Return to mining planet
-          if (this.assignedPlanet) {
-            this.travelTo(this.assignedPlanet)
-          }
-        }
-      },
-      loop: true
-    })
-  } else {
-    // Start mining
-    this.startMining()
+  // Add initial trail point immediately
+  this.addTrailPoint(this.x, this.y)
+
+  // Change ship color to match planet
+  this.shipColor = targetPlanet.ringColor
+
+  // Calculate current distance and angle relative to target planet
+  const dx = this.x - targetPlanet.x
+  const dy = this.y - targetPlanet.y
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+  const startAngle = Math.atan2(dy, dx)
+
+  // Set up spiral - start from current position relative to target
+  this.spiralCenter = { x: targetPlanet.x, y: targetPlanet.y }
+  this.spiralRadius = startDistance
+  this.spiralAngle = startAngle
+  
+  // Tween the spiral radius down to the orbit radius
+  this.scene.tweens.add({
+    targets: this,
+    spiralRadius: targetPlanet.coreRadius,
+    duration: this.travelDuration,
+    ease: 'Power2',
+    onUpdate: () => {
+      // Rotate while spiraling in
+      this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
+      
+      // Calculate position on spiral
+      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
+      
+      // Add trail point every frame for smooth trail
+      this.addTrailPoint(this.x, this.y)
+      
+      this.statusText.setPosition(this.x, this.y - 15)
+      this.draw()
+    },
+    onComplete: () => {
+      // Arrived at target planet
+      this.angle = this.spiralAngle
+      this.currentPlanet = targetPlanet
+      this.trailPoints = []
+      this.updateTrail()
+      
+      // Check if this is the home planet or mining planet
+      if (targetPlanet === this.homePlanet) {
+        this.state = 'ORBITING'
+        this.statusText.setVisible(false)
+        const startAngle = this.angle
+        
+        this.orbitCheckInterval = this.scene.time.addEvent({
+          delay: 100,
+          callback: () => {
+            const angleDiff = Math.abs(this.angle - startAngle)
+            if (angleDiff > Math.PI * 2 - 0.2) {
+              this.orbitCheckInterval.remove()
+              if (this.assignedPlanet) {
+                this.travelTo(this.assignedPlanet)
+              }
+            }
+          },
+          loop: true
+        })
+      } else {
+        this.startMining()
+      }
+    }
+  })
+}
+
+// Update addTrailPoint to keep more points
+addTrailPoint(x, y) {
+  this.trailPoints.push({ x, y, alpha: 1 })
+  
+  // Keep trail at reasonable length - increased for smoother curves
+  if (this.trailPoints.length > 40) {
+    this.trailPoints.shift()
   }
 }
-    })
+
+// Update trail drawing to use curves for smoother appearance
+updateTrail() {
+  this.trailGraphics.clear()
+  
+  if (this.trailPoints.length < 2) return
+  
+  // Fade out older points
+  for (let i = 0; i < this.trailPoints.length; i++) {
+    this.trailPoints[i].alpha *= 0.97
   }
+  
+  // Draw smooth curve through points
+  if (this.trailPoints.length >= 3) {
+    for (let i = 0; i < this.trailPoints.length - 1; i++) {
+      const curr = this.trailPoints[i]
+      const next = this.trailPoints[i + 1]
+      
+      // Gradient alpha from current to next
+      const alpha = (curr.alpha + next.alpha) / 2 * 0.7
+      const lineWidth = 2 + (alpha * 1) // Thicker when more opaque
+      
+      this.trailGraphics.lineStyle(lineWidth, this.shipColor, alpha)
+      this.trailGraphics.lineBetween(curr.x, curr.y, next.x, next.y)
+    }
+  }
+  
+  // Remove fully faded points
+  this.trailPoints = this.trailPoints.filter(p => p.alpha > 0.05)
+}
+
+// Update returnHome similarly
+returnHome() {
+  this.state = 'SPIRALING'
+  this.statusText.setVisible(false)
+  this.trailPoints = []
+  
+  // Add initial trail point immediately
+  this.addTrailPoint(this.x, this.y)
+
+  const dx = this.x - this.homePlanet.x
+  const dy = this.y - this.homePlanet.y
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+  const startAngle = Math.atan2(dy, dx)
+
+  this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
+  this.spiralRadius = startDistance
+  this.spiralAngle = startAngle
+
+  this.scene.tweens.add({
+    targets: this,
+    spiralRadius: this.homePlanet.coreRadius,
+    duration: this.travelDuration,
+    ease: 'Power2',
+    onUpdate: () => {
+      this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
+      
+      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
+      
+      // Add trail point every frame
+      this.addTrailPoint(this.x, this.y)
+      
+      this.statusText.setPosition(this.x, this.y - 15)
+      this.draw()
+    },
+    onComplete: () => {
+      this.angle = this.spiralAngle
+      this.currentPlanet = this.homePlanet
+      this.state = 'ORBITING'
+      this.statusText.setVisible(false)
+      this.trailPoints = []
+      this.updateTrail()
+      
+      const startAngle = this.angle
+      
+      this.orbitCheckInterval = this.scene.time.addEvent({
+        delay: 100,
+        callback: () => {
+          const angleDiff = Math.abs(this.angle - startAngle)
+          if (angleDiff > Math.PI * 2 - 0.2) {
+            this.orbitCheckInterval.remove()
+            if (this.assignedPlanet) {
+              this.travelTo(this.assignedPlanet)
+            }
+          }
+        },
+        loop: true
+      })
+    }
+  })
+}
+
+// Update recallToHome similarly
+recallToHome() {
+  this.scene.tweens.killTweensOf(this)
+  
+  if (this.orbitCheckInterval) {
+    this.orbitCheckInterval.remove()
+    this.orbitCheckInterval = null
+  }
+
+  this.state = 'SPIRALING'
+  this.statusText.setVisible(false)
+  this.assignedPlanet = null
+  this.hideProgressBar()
+  this.miningParticles = []
+  this.trailPoints = []
+  
+  // Add initial trail point immediately
+  this.addTrailPoint(this.x, this.y)
+
+  this.shipColor = 0xffaa00
+
+  const dx = this.x - this.homePlanet.x
+  const dy = this.y - this.homePlanet.y
+  const startDistance = Math.sqrt(dx * dx + dy * dy)
+  const startAngle = Math.atan2(dy, dx)
+
+  this.spiralCenter = { x: this.homePlanet.x, y: this.homePlanet.y }
+  this.spiralRadius = startDistance
+  this.spiralAngle = startAngle
+
+  this.scene.tweens.add({
+    targets: this,
+    spiralRadius: this.homePlanet.coreRadius,
+    duration: this.travelDuration,
+    ease: 'Power2',
+    onUpdate: () => {
+      this.spiralAngle += 0.05 * (this.rotationSpeed / this.baseRotationSpeed)
+      
+      this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
+      this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
+      
+      // Add trail point every frame
+      this.addTrailPoint(this.x, this.y)
+      
+      this.statusText.setPosition(this.x, this.y - 15)
+      this.draw()
+    },
+    onComplete: () => {
+      this.angle = this.spiralAngle
+      this.currentPlanet = this.homePlanet
+      this.state = 'IDLE'
+      this.statusText.setText('IDLE')
+      this.statusText.setVisible(true)
+      this.trailPoints = []
+      this.updateTrail()
+    }
+  })
+}
 
   addTrailPoint(x, y) {
     this.trailPoints.push({ x, y, alpha: 1 })

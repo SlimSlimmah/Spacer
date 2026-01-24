@@ -116,31 +116,41 @@ class PlanetPopup {
     })
   }
 
-  show(planet, worldX, worldY) {
-    this.planet = planet
-    this.isVisible = true
-    this.justOpened = true
-    
-    // Convert world coordinates to screen coordinates
-    const cam = this.scene.cameras.main
-    const screenX = (worldX - cam.scrollX) * cam.zoom
-    const screenY = (worldY - cam.scrollY) * cam.zoom
-    
-    // Clamp to screen bounds to keep popup visible
-    const popupHalfWidth = 75
-    const popupHalfHeight = 60
-    const clampedX = Phaser.Math.Clamp(screenX, popupHalfWidth, this.scene.scale.width - popupHalfWidth)
-    const clampedY = Phaser.Math.Clamp(screenY, popupHalfHeight + 40, this.scene.scale.height - popupHalfHeight) // +40 for resource bar
-    
-    this.container.setPosition(clampedX, clampedY)
-    this.container.setVisible(true)
-    this.updateShipCount()
 
-    // Allow closing after 200ms
-    this.scene.time.delayedCall(200, () => {
-      this.justOpened = false
-    })
-  }
+
+
+
+show(planet, worldX, worldY) {
+  this.planet = planet
+  this.isVisible = true
+  this.justOpened = true
+  
+  // Convert world coordinates to screen coordinates
+  const cam = this.scene.cameras.main
+  const screenX = (worldX - cam.scrollX) * cam.zoom
+  const screenY = (worldY - cam.scrollY) * cam.zoom
+  
+  // Clamp to screen bounds to keep popup visible
+  const popupHalfWidth = 75
+  const popupHalfHeight = 60
+  const resourceBarHeight = this.scene.resourceBar ? this.scene.resourceBar.getBarHeight() : 40
+  
+  const clampedX = Phaser.Math.Clamp(screenX, popupHalfWidth, this.scene.scale.width - popupHalfWidth)
+  const clampedY = Phaser.Math.Clamp(screenY, popupHalfHeight + resourceBarHeight, this.scene.scale.height - popupHalfHeight)
+  
+  this.container.setPosition(clampedX, clampedY)
+  this.container.setVisible(true)
+  this.updateShipCount()
+
+  this.scene.time.delayedCall(200, () => {
+    this.justOpened = false
+  })
+}
+
+
+
+
+
 
   hide() {
     this.isVisible = false
@@ -520,14 +530,16 @@ class DealershipPanel {
 }
 
 // ResourceBar class
-// ResourceBar class
 class ResourceBar {
   constructor(scene) {
     this.scene = scene
-    this.resources = {} // Track revolutions by rarity
+    this.resources = {}
+    
+    // Safe area padding for mobile
+    const topPadding = scene.isMobile ? 20 : 0
     
     // Create container fixed to screen
-    this.container = scene.add.container(0, 0)
+    this.container = scene.add.container(0, topPadding)
     this.container.setDepth(300)
     this.container.setScrollFactor(0)
     
@@ -563,17 +575,17 @@ class ResourceBar {
     this.shipCountText.setOrigin(1, 0.5)
     this.container.add(this.shipCountText)
     
+    this.topPadding = topPadding
     this.update()
   }
   
   addRevolution(rarity) {
-    // Track by rarity name instead of individual color
     const rarityName = rarity.name
     
     if (!this.resources[rarityName]) {
       this.resources[rarityName] = {
         name: rarityName,
-        color: rarity.ringBase, // Use base ring color for display
+        color: rarity.ringBase,
         count: 0
       }
     }
@@ -634,6 +646,10 @@ class ResourceBar {
     // Reposition counters
     this.planetCountText.setPosition(width - 20, 10)
     this.shipCountText.setPosition(width - 20, 30)
+  }
+  
+  getBarHeight() {
+    return 40 + this.topPadding
   }
 }
 
@@ -923,16 +939,16 @@ scanForPlanet() {
 
 
 handleResize(gameSize) {
-  const mobileTopPadding = this.isMobile ? 70 : 50
-  const mobileButtonRow2 = this.isMobile ? 140 : 110
-  const mobileButtonRow3 = this.isMobile ? 210 : 180
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileTopPadding = this.isMobile ? resourceBarHeight + 10 : 50
+  const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
+  const mobileButtonRow3 = this.isMobile ? resourceBarHeight + 150 : 180
 
   // Resize resource bar
   if (this.resourceBar) {
     this.resourceBar.resize(gameSize.width)
   }
 
-  // Reposition UI elements on resize
   if (this.zoomInBtn && this.zoomOutBtn) {
     if (this.isMobile) {
       this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
@@ -973,12 +989,12 @@ handleResize(gameSize) {
 
 
 createZoomButtons() {
-  // Larger buttons for mobile
   const buttonSize = this.isMobile ? 60 : 50
   const fontSize = this.isMobile ? '40px' : '32px'
   
-  // Position below the 40px resource bar
-  const mobileTopPadding = this.isMobile ? 70 : 50
+  // Position below the resource bar - account for safe area padding
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileTopPadding = this.isMobile ? resourceBarHeight + 10 : 50
 
   const buttonStyle = {
     fontSize: fontSize,
@@ -990,9 +1006,7 @@ createZoomButtons() {
     align: 'center'
   }
 
-  // Position buttons differently for mobile vs desktop
   if (this.isMobile) {
-    // Mobile: center, below resource bar
     this.zoomOutBtn = this.add.text(this.scale.width / 2 - 70, mobileTopPadding, '−', buttonStyle)
       .setOrigin(0.5)
       .setInteractive()
@@ -1005,7 +1019,6 @@ createZoomButtons() {
       .setDepth(100)
       .setScrollFactor(0)
   } else {
-    // Desktop: top right, below resource bar
     this.zoomInBtn = this.add.text(this.scale.width - 70, 50, '+', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
@@ -1017,10 +1030,8 @@ createZoomButtons() {
       .setDepth(100)
   }
 
-  // Make buttons only visible to UI camera
   this.cameras.main.ignore([this.zoomInBtn, this.zoomOutBtn])
 
-  // Use pointerup instead of pointerdown for better mobile response
   this.zoomInBtn.on('pointerup', (pointer) => {
     pointer.event.stopPropagation()
     const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + 0.2, 0.2, 3)
@@ -1107,7 +1118,8 @@ createZoomButtons() {
 
 createDealershipButton() {
   const fontSize = this.isMobile ? '14px' : '14px'
-  const mobileButtonRow2 = this.isMobile ? 140 : 110
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
 
   const buttonStyle = {
     fontSize: fontSize,
@@ -1137,6 +1149,79 @@ createDealershipButton() {
     this.dealershipPanel.show()
   })
 }
+
+createScanButton() {
+  const fontSize = this.isMobile ? '18px' : '14px'
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#00ff00',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.scanBtn = this.add.text(this.scale.width - 70, 245, 'SCAN', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.scanBtn])
+
+  this.scanBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.scanForPlanet()
+  })
+}
+
+createResearchButton() {
+  const fontSize = this.isMobile ? '16px' : '14px'
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileButtonRow3 = this.isMobile ? resourceBarHeight + 150 : 180
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#66ccff',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.researchBtn = this.add.text(this.scale.width - 70, 310, 'RESEARCH', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.researchBtn])
+
+  this.researchBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.researchPanel.show()
+  })
+}
+
+
+
+
+
 
 createScanButton() {
   const fontSize = this.isMobile ? '18px' : '14px'

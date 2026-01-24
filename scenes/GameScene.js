@@ -669,8 +669,8 @@ export default class GameScene extends Phaser.Scene {
     // Create dealership panel
     this.dealershipPanel = new DealershipPanel(this)
 
-    // Second planet (gray) with PLANET1 nameplate
-    this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70)
+// In create() method, update the PLANET1 creation:
+this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70, '#999999')
 
     // Camera pan setup
     this.isPanning = false
@@ -714,94 +714,144 @@ export default class GameScene extends Phaser.Scene {
     this.scale.on('resize', this.handleResize, this)
   }
 
-  addPlanet(x, y, coreColor, ringColor, name, coreRadius) {
-    const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius)
-    this.planets.push(planet)
 
-    // Set up planet click handler for travel
-    planet.setOnClick((clickedPlanet) => {
-      // Send first idle ship to this planet
-      const idleShip = this.ships.find(ship => ship.state === 'IDLE')
-      if (idleShip) {
-        idleShip.travelTo(clickedPlanet)
-      }
-    })
 
-    // Set up planet hold handler to show popup at hold location
-    planet.setOnHold((heldPlanet, pointerX, pointerY) => {
-      this.planetPopup.show(heldPlanet, pointerX, pointerY)
-    })
+addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff') {
+  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius, textColor)
+  this.planets.push(planet)
 
-    this.updateUICameraIgnoreList()
+  // Set up planet click handler for travel
+  planet.setOnClick((clickedPlanet) => {
+    // Send first idle ship to this planet
+    const idleShip = this.ships.find(ship => ship.state === 'IDLE')
+    if (idleShip) {
+      idleShip.travelTo(clickedPlanet)
+    }
+  })
+
+  // Set up planet hold handler to show popup at hold location
+  planet.setOnHold((heldPlanet, pointerX, pointerY) => {
+    this.planetPopup.show(heldPlanet, pointerX, pointerY)
+  })
+
+  this.updateUICameraIgnoreList()
+}
+
+
+
+
+
+// Add this method to the GameScene class
+getRarityColors() {
+  const rarities = [
+    { name: 'COMMON', weight: 50, coreBase: 0x555555, ringBase: 0x999999, textColor: '#999999' },
+    { name: 'UNCOMMON', weight: 30, coreBase: 0x2d5a2d, ringBase: 0x4a9d4a, textColor: '#4a9d4a' },
+    { name: 'RARE', weight: 12, coreBase: 0x2d4a7a, ringBase: 0x4a7acc, textColor: '#4a7acc' },
+    { name: 'EPIC', weight: 5, coreBase: 0x6b2d7a, ringBase: 0xa84acc, textColor: '#a84acc' },
+    { name: 'LEGENDARY', weight: 2, coreBase: 0x8a7a2d, ringBase: 0xddc84a, textColor: '#ddc84a' },
+    { name: 'MYTHIC', weight: 1, coreBase: 0x8a4a2d, ringBase: 0xdd7a4a, textColor: '#dd7a4a' }
+  ]
+  
+  // Calculate total weight
+  const totalWeight = rarities.reduce((sum, r) => sum + r.weight, 0)
+  
+  // Pick random rarity based on weights
+  let random = Math.random() * totalWeight
+  for (const rarity of rarities) {
+    random -= rarity.weight
+    if (random <= 0) {
+      return rarity
+    }
   }
+  
+  return rarities[0] // Fallback to common
+}
 
-  scanForPlanet() {
-    let x, y, coreRadius
-    let validPosition = false
-    let attempts = 0
-    const maxAttempts = 50
+scanForPlanet() {
+  let x, y, coreRadius
+  let validPosition = false
+  let attempts = 0
+  const maxAttempts = 50
 
-    // Keep trying to find a non-overlapping position
-    while (!validPosition && attempts < maxAttempts) {
-      // Random position around home planet
-      const angle = Math.random() * Math.PI * 2
-      const distance = Phaser.Math.Between(200, 400)
-      x = this.basePlanet.x + Math.cos(angle) * distance
-      y = this.basePlanet.y + Math.sin(angle) * distance
+  // Spawn distance increases with planet count
+  const baseMinDistance = 200
+  const baseMaxDistance = 400
+  const distanceIncrease = this.planets.length * 50
+  const minDistance = baseMinDistance + distanceIncrease
+  const maxDistance = baseMaxDistance + distanceIncrease
 
-      // Random size
-      coreRadius = Phaser.Math.Between(50, 90)
+  // Keep trying to find a non-overlapping position
+  while (!validPosition && attempts < maxAttempts) {
+    // Random position around home planet - distance based on planet count
+    const angle = Math.random() * Math.PI * 2
+    const distance = Phaser.Math.Between(minDistance, maxDistance)
+    x = this.basePlanet.x + Math.cos(angle) * distance
+    y = this.basePlanet.y + Math.sin(angle) * distance
 
-      // Check if this position overlaps with any existing planet
-      validPosition = true
-      const minDistance = coreRadius + 100 // Buffer space
-
-      // Check against home planet
-      const distToHome = Math.sqrt(
-        Math.pow(x - this.basePlanet.x, 2) + 
-        Math.pow(y - this.basePlanet.y, 2)
-      )
-      if (distToHome < this.basePlanet.coreRadius + minDistance) {
-        validPosition = false
-      }
-
-      // Check against all other planets
-      for (const planet of this.planets) {
-        const dist = Math.sqrt(
-          Math.pow(x - planet.x, 2) + 
-          Math.pow(y - planet.y, 2)
-        )
-        if (dist < planet.coreRadius + minDistance) {
-          validPosition = false
-          break
-        }
-      }
-
-      attempts++
-    }
-
-    if (!validPosition) {
-      console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
-      return
-    }
-
-    // Generate coordinated colors - same base color for both core and ring
-    const baseColor = Phaser.Display.Color.RandomRGB()
-    const coreColor = baseColor.color
+    // Random level (1-10)
+    const level = Phaser.Math.Between(1, 10)
     
-    // Make ring color a brighter version of core color
-    const ringColor = Phaser.Display.Color.GetColor(
-      Math.min(255, baseColor.red + 40),
-      Math.min(255, baseColor.green + 40),
-      Math.min(255, baseColor.blue + 40)
+    // Size based on level (50 base + 5 per level)
+    coreRadius = 50 + (level * 5)
+
+    // Check if this position overlaps with any existing planet
+    validPosition = true
+    const bufferSpace = coreRadius + 100
+
+    // Check against home planet
+    const distToHome = Math.sqrt(
+      Math.pow(x - this.basePlanet.x, 2) + 
+      Math.pow(y - this.basePlanet.y, 2)
     )
+    if (distToHome < this.basePlanet.coreRadius + bufferSpace) {
+      validPosition = false
+    }
 
-    // Generate name
-    const planetNumber = this.planets.length + 1
-    const name = `PLANET${planetNumber}`
+    // Check against all other planets
+    for (const planet of this.planets) {
+      const dist = Math.sqrt(
+        Math.pow(x - planet.x, 2) + 
+        Math.pow(y - planet.y, 2)
+      )
+      if (dist < planet.coreRadius + bufferSpace) {
+        validPosition = false
+        break
+      }
+    }
 
-    this.addPlanet(x, y, coreColor, ringColor, name, coreRadius)
+    attempts++
+    
+    if (validPosition) {
+      // Get rarity-based colors
+      const rarity = this.getRarityColors()
+      
+      // Add some color variation to the base colors
+      const colorVariation = () => Phaser.Math.Between(-20, 20)
+      
+      const coreColor = Phaser.Display.Color.GetColor(
+        Phaser.Math.Clamp(((rarity.coreBase >> 16) & 0xFF) + colorVariation(), 0, 255),
+        Phaser.Math.Clamp(((rarity.coreBase >> 8) & 0xFF) + colorVariation(), 0, 255),
+        Phaser.Math.Clamp((rarity.coreBase & 0xFF) + colorVariation(), 0, 255)
+      )
+      
+      const ringColor = Phaser.Display.Color.GetColor(
+        Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation(), 0, 255),
+        Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation(), 0, 255),
+        Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation(), 0, 255)
+      )
+
+      // Generate name with rarity prefix and level
+      const planetNumber = this.planets.length + 1
+      const name = `${rarity.name} LV${level}`
+
+      this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, rarity.textColor)
+    }
   }
+
+  if (!validPosition) {
+    console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
+  }
+}
 
   addShip() {
     const newShip = new Ship(this, this.basePlanet, this.basePlanet.coreRadius)

@@ -386,14 +386,16 @@ recallToHome() {
     }
   }
 
+
+
 startMining() {
   this.state = 'MINING'
   this.statusText.setText('MINING')
   this.statusText.setVisible(true)
   this.miningProgress = 0
   this.miningParticles = []
-  this.trailPoints = [] // Clear trail when starting mining
-  this.updateTrail() // Clear trail graphics
+  this.trailPoints = []
+  this.updateTrail()
   this.showProgressBar()
 
   // Mine for 3 seconds
@@ -407,11 +409,21 @@ startMining() {
     },
     onComplete: () => {
       this.hideProgressBar()
-      this.miningParticles = [] // Clear particles
+      this.miningParticles = []
+      
+      // Add revolution to resource bar
+      if (this.scene.resourceBar) {
+        this.scene.resourceBar.addRevolution(this.currentPlanet.ringColor)
+      }
+      
       this.returnHome()
     }
   })
 }
+
+
+
+
 
 
   returnHome() {

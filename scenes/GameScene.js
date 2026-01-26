@@ -199,6 +199,7 @@ show(planet, worldX, worldY) {
 }
 
 // ResearchPanel class
+// ResearchPanel class
 class ResearchPanel {
   constructor(scene) {
     this.scene = scene
@@ -209,10 +210,10 @@ class ResearchPanel {
     this.container = scene.add.container(0, 0)
     this.container.setDepth(250)
     this.container.setVisible(false)
-    this.container.setScrollFactor(0) // Keep it fixed to screen
+    this.container.setScrollFactor(0)
 
     const panelWidth = 400
-    const panelHeight = 300
+    const panelHeight = 500
 
     // Background
     this.bg = scene.add.graphics()
@@ -246,21 +247,68 @@ class ResearchPanel {
     })
     this.container.add(this.closeBtn)
 
+    // Scrollable content container
+    this.scrollContainer = scene.add.container(0, -panelHeight/2 + 70)
+    this.container.add(this.scrollContainer)
+
+    // Mask for scrollable area
+    const maskShape = scene.make.graphics()
+    maskShape.fillStyle(0xffffff)
+    maskShape.fillRect(-panelWidth/2, -panelHeight/2 + 70, panelWidth, panelHeight - 100)
+    this.scrollMask = maskShape.createGeometryMask()
+    this.scrollContainer.setMask(this.scrollMask)
+
+    this.scrollY = 0
+    this.maxScrollY = 0
+    this.isDragging = false
+    this.dragStartY = 0
+
     // Upgrade items
     this.upgradeItems = []
-    this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection', -70)
-    this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters', 20)
-	this.createUpgradeItem('Fuel Refinement', 'Unlocks Refinery', 0, 'fuelRefinement', 60)
+    this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection')
+    this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters')
+    this.createUpgradeItem('Fuel Refinement', 'Unlocks Refinery', 0, 'fuelRefinement')
+    this.createUpgradeItem('Planet Database', 'Increases Planet Capacity by 5', 0, 'planetDatabase')
+    this.createUpgradeItem('Ship Hangar', 'Increases Ship Capacity by 5', 0, 'shipHangar')
 
+    this.repositionUpgrades()
+
+    // Scrolling with mouse wheel
+    this.scrollListener = scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+      if (this.isVisible) {
+        this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.3, 0, this.maxScrollY)
+        this.updateScrollPosition()
+      }
+    })
+
+    // Touch/drag scrolling
+    this.bg.setInteractive()
+    this.bg.on('pointerdown', (pointer) => {
+      if (this.isVisible) {
+        this.isDragging = true
+        this.dragStartY = pointer.y
+        this.dragStartScrollY = this.scrollY
+      }
+    })
+
+    scene.input.on('pointermove', (pointer) => {
+      if (this.isDragging && this.isVisible) {
+        const deltaY = this.dragStartY - pointer.y
+        this.scrollY = Phaser.Math.Clamp(this.dragStartScrollY + deltaY, 0, this.maxScrollY)
+        this.updateScrollPosition()
+      }
+    })
+
+    scene.input.on('pointerup', () => {
+      this.isDragging = false
+    })
 
     // Click anywhere to close (similar to planet popup)
     this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-      if (this.isVisible && !this.justOpened) {
-        // Use screen coordinates since panel has scrollFactor 0
+      if (this.isVisible && !this.justOpened && !this.isDragging) {
         const screenX = pointer.x
         const screenY = pointer.y
         
-        // Get panel bounds in screen space
         const panelCenterX = this.scene.scale.width / 2
         const panelCenterY = this.scene.scale.height / 2
         const halfWidth = panelWidth / 2
@@ -280,118 +328,187 @@ class ResearchPanel {
     })
   }
 
-  createUpgradeItem(name, description, cost, id, yOffset) {
-    const item = {}
-    
-    // Container for this upgrade
-    const itemBg = this.scene.add.graphics()
-    itemBg.fillStyle(0x1a2a3a, 0.8)
-    itemBg.fillRoundedRect(-180, yOffset, 360, 70, 8)
-    this.container.add(itemBg)
-
-    // Name
-    const nameText = this.scene.add.text(-170, yOffset + 10, name, {
-      fontSize: '18px',
-      color: '#ffffff',
-      fontStyle: 'bold'
-    })
-    this.container.add(nameText)
-
-    // Description
-    const descText = this.scene.add.text(-170, yOffset + 32, description, {
-      fontSize: '14px',
-      color: '#aaaaaa'
-    })
-    this.container.add(descText)
-
-    // Level indicator (for multi-purchase upgrades)
-    const levelText = this.scene.add.text(-170, yOffset + 52, 'Level: 0', {
-      fontSize: '12px',
-      color: '#ffaa00'
-    })
-    this.container.add(levelText)
-
-    // Purchase button
-    const btnText = cost === 0 ? 'FREE' : `${cost} Credits`
-    const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
-      fontSize: '16px',
-      color: '#00ff00',
-      backgroundColor: '#2a4a2a',
-      padding: { x: 15, y: 8 }
-    })
-    purchaseBtn.setOrigin(0.5)
-    purchaseBtn.setInteractive({ useHandCursor: true })
-    purchaseBtn.on('pointerdown', (pointer) => {
-      pointer.event.stopPropagation()
-    })
-    purchaseBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.purchaseUpgrade(id)
-    })
-    this.container.add(purchaseBtn)
-
-    item.id = id
-    item.bg = itemBg
-    item.nameText = nameText
-    item.descText = descText
-    item.levelText = levelText
-    item.purchaseBtn = purchaseBtn
-    item.cost = cost
+  createUpgradeItem(name, description, cost, id) {
+    const item = {
+      id: id,
+      name: name,
+      description: description,
+      cost: cost,
+      isPurchased: false,
+      level: 0,
+      elements: null
+    }
 
     this.upgradeItems.push(item)
   }
 
+  renderUpgradeItem(item, yOffset) {
+    // Container for this upgrade
+    const itemBg = this.scene.add.graphics()
+    itemBg.fillStyle(0x1a2a3a, 0.8)
+    itemBg.fillRoundedRect(-180, yOffset, 360, 70, 8)
+    this.scrollContainer.add(itemBg)
 
-
-purchaseUpgrade(id) {
-  if (id === 'planetDetection') {
-    if (!this.scene.research.planetDetection) {
-      this.scene.research.planetDetection = true
-      this.scene.scanBtn.setVisible(true)
-      
-      const item = this.upgradeItems.find(i => i.id === 'planetDetection')
-      item.purchaseBtn.setText('PURCHASED')
-      item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
-      item.purchaseBtn.disableInteractive()
-    }
-  } else if (id === 'thrusters') {
-    this.scene.research.thrustersLevel++
-    const level = this.scene.research.thrustersLevel
-    
-    const speedMultiplier = 1 + (level * 0.1)
-    this.scene.ships.forEach(ship => {
-      ship.applySpeedMultiplier(speedMultiplier)
+    // Name
+    const nameText = this.scene.add.text(-170, yOffset + 10, item.name, {
+      fontSize: '18px',
+      color: '#ffffff',
+      fontStyle: 'bold'
     })
+    this.scrollContainer.add(nameText)
+
+    // Description
+    const descText = this.scene.add.text(-170, yOffset + 32, item.description, {
+      fontSize: '14px',
+      color: '#aaaaaa'
+    })
+    this.scrollContainer.add(descText)
+
+    // Level indicator (for multi-purchase upgrades)
+    const levelText = this.scene.add.text(-170, yOffset + 52, `Level: ${item.level}`, {
+      fontSize: '12px',
+      color: '#ffaa00'
+    })
+    this.scrollContainer.add(levelText)
+
+    // Purchase button
+    const btnText = item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? 'PURCHASED' : (item.cost === 0 ? 'FREE' : `${item.cost} Credits`)
+    const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
+      fontSize: '16px',
+      color: item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? '#666666' : '#00ff00',
+      backgroundColor: item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? '#333333' : '#2a4a2a',
+      padding: { x: 15, y: 8 }
+    })
+    purchaseBtn.setOrigin(0.5)
     
-    const item = this.upgradeItems.find(i => i.id === 'thrusters')
-    item.levelText.setText(`Level: ${level}`)
-  } else if (id === 'fuelRefinement') {
-    if (!this.scene.research.fuelRefinement) {
-      this.scene.research.fuelRefinement = true
-      this.scene.refineryBtn.setVisible(true)
-      
-      const item = this.upgradeItems.find(i => i.id === 'fuelRefinement')
-      item.purchaseBtn.setText('PURCHASED')
-      item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
-      item.purchaseBtn.disableInteractive()
+    if (!item.isPurchased || item.id === 'thrusters' || item.id === 'planetDatabase' || item.id === 'shipHangar') {
+      purchaseBtn.setInteractive({ useHandCursor: true })
+      purchaseBtn.on('pointerdown', (pointer) => {
+        pointer.event.stopPropagation()
+      })
+      purchaseBtn.on('pointerup', (pointer) => {
+        pointer.event.stopPropagation()
+        this.purchaseUpgrade(item.id)
+      })
+    }
+    
+    this.scrollContainer.add(purchaseBtn)
+
+    item.elements = {
+      bg: itemBg,
+      nameText: nameText,
+      descText: descText,
+      levelText: levelText,
+      purchaseBtn: purchaseBtn
     }
   }
-}
 
+  repositionUpgrades() {
+    // Clear existing rendered elements
+    this.upgradeItems.forEach(item => {
+      if (item.elements) {
+        item.elements.bg.destroy()
+        item.elements.nameText.destroy()
+        item.elements.descText.destroy()
+        item.elements.levelText.destroy()
+        item.elements.purchaseBtn.destroy()
+        item.elements = null
+      }
+    })
 
+    // Sort: unpurchased first, then purchased (except for repeatable upgrades)
+    const sortedItems = [...this.upgradeItems].sort((a, b) => {
+      const aRepeatable = a.id === 'thrusters' || a.id === 'planetDatabase' || a.id === 'shipHangar'
+      const bRepeatable = b.id === 'thrusters' || b.id === 'planetDatabase' || b.id === 'shipHangar'
+      
+      // Repeatable upgrades always at top
+      if (aRepeatable && !bRepeatable) return -1
+      if (!aRepeatable && bRepeatable) return 1
+      
+      // Then sort by purchased status
+      if (!a.isPurchased && b.isPurchased) return -1
+      if (a.isPurchased && !b.isPurchased) return 1
+      
+      return 0
+    })
 
+    // Render all items
+    let yOffset = 0
+    sortedItems.forEach(item => {
+      this.renderUpgradeItem(item, yOffset)
+      yOffset += 90 // 70px item + 20px spacing
+    })
+
+    // Calculate max scroll
+    this.maxScrollY = Math.max(0, yOffset - 330) // 330 is visible height
+  }
+
+  updateScrollPosition() {
+    this.scrollContainer.setY(-this.scrollY + (-250 + 70))
+  }
+
+  purchaseUpgrade(id) {
+    const item = this.upgradeItems.find(i => i.id === id)
+    if (!item) return
+
+    if (id === 'planetDetection') {
+      if (!this.scene.research.planetDetection) {
+        this.scene.research.planetDetection = true
+        this.scene.scanBtn.setVisible(true)
+        item.isPurchased = true
+        this.repositionUpgrades()
+      }
+    } else if (id === 'thrusters') {
+      this.scene.research.thrustersLevel++
+      item.level = this.scene.research.thrustersLevel
+      
+      const speedMultiplier = 1 + (item.level * 0.1)
+      this.scene.ships.forEach(ship => {
+        ship.applySpeedMultiplier(speedMultiplier)
+      })
+      
+      this.repositionUpgrades()
+    } else if (id === 'fuelRefinement') {
+      if (!this.scene.research.fuelRefinement) {
+        this.scene.research.fuelRefinement = true
+        this.scene.refineryBtn.setVisible(true)
+        item.isPurchased = true
+        this.repositionUpgrades()
+      }
+    } else if (id === 'planetDatabase') {
+      this.scene.research.planetDatabaseLevel = (this.scene.research.planetDatabaseLevel || 0) + 1
+      item.level = this.scene.research.planetDatabaseLevel
+      
+      // Increase max planets by 5
+      this.scene.maxPlanets += 5
+      if (this.scene.resourceBar) {
+        this.scene.resourceBar.updatePlanetCount(this.scene.planets.length, this.scene.maxPlanets)
+      }
+      
+      this.repositionUpgrades()
+    } else if (id === 'shipHangar') {
+      this.scene.research.shipHangarLevel = (this.scene.research.shipHangarLevel || 0) + 1
+      item.level = this.scene.research.shipHangarLevel
+      
+      // Increase max ships by 5
+      this.scene.maxShips += 5
+      if (this.scene.resourceBar) {
+        this.scene.resourceBar.updateShipCount(this.scene.ships.length, this.scene.maxShips)
+      }
+      
+      this.repositionUpgrades()
+    }
+  }
 
   show() {
     this.isVisible = true
     this.justOpened = true
     
-    // Center on screen (not world)
     const centerX = this.scene.scale.width / 2
     const centerY = this.scene.scale.height / 2
     this.container.setPosition(centerX, centerY)
     this.container.setVisible(true)
 
-    // Allow closing after 200ms
     this.scene.time.delayedCall(200, () => {
       this.justOpened = false
     })
@@ -402,6 +519,11 @@ purchaseUpgrade(id) {
     this.container.setVisible(false)
   }
 }
+
+
+
+
+
 
 // DealershipPanel class
 class DealershipPanel {
@@ -989,12 +1111,18 @@ create() {
   const cx = this.scale.width / 2
   const cy = this.scale.height / 2
 
-  // Research state
-  this.research = {
-    planetDetection: false,
-    thrustersLevel: 0,
-    fuelRefinement: false
-  }
+
+
+// Research state
+this.research = {
+  planetDetection: false,
+  thrustersLevel: 0,
+  fuelRefinement: false,
+  planetDatabaseLevel: 0,
+  shipHangarLevel: 0
+}
+
+
 
   // Limits
   this.maxShips = 10

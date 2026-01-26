@@ -198,7 +198,11 @@ show(planet, worldX, worldY) {
   }
 }
 
-// ResearchPanel class
+
+
+
+
+
 // ResearchPanel class
 class ResearchPanel {
   constructor(scene) {
@@ -251,13 +255,6 @@ class ResearchPanel {
     this.scrollContainer = scene.add.container(0, -panelHeight/2 + 70)
     this.container.add(this.scrollContainer)
 
-    // Mask for scrollable area
-    const maskShape = scene.make.graphics()
-    maskShape.fillStyle(0xffffff)
-    maskShape.fillRect(-panelWidth/2, -panelHeight/2 + 70, panelWidth, panelHeight - 100)
-    this.scrollMask = maskShape.createGeometryMask()
-    this.scrollContainer.setMask(this.scrollMask)
-
     this.scrollY = 0
     this.maxScrollY = 0
     this.isDragging = false
@@ -281,9 +278,13 @@ class ResearchPanel {
       }
     })
 
-    // Touch/drag scrolling
-    this.bg.setInteractive()
-    this.bg.on('pointerdown', (pointer) => {
+    // Touch/drag scrolling - make the container interactive instead of bg
+    this.container.setInteractive(
+      new Phaser.Geom.Rectangle(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight),
+      Phaser.Geom.Rectangle.Contains
+    )
+    
+    this.container.on('pointerdown', (pointer) => {
       if (this.isVisible) {
         this.isDragging = true
         this.dragStartY = pointer.y
@@ -444,7 +445,7 @@ class ResearchPanel {
   }
 
   updateScrollPosition() {
-    this.scrollContainer.setY(-this.scrollY + (-250 + 70))
+    this.scrollContainer.setY(-this.scrollY - 250 + 70)
   }
 
   purchaseUpgrade(id) {
@@ -519,6 +520,7 @@ class ResearchPanel {
     this.container.setVisible(false)
   }
 }
+
 
 
 

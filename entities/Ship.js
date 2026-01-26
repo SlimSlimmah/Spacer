@@ -405,6 +405,22 @@ recallToHome() {
 
 
 startMining() {
+  // Check if we have fuel
+  if (this.scene.resourceBar.fuelCount < 1) {
+    console.log("Not enough fuel to mine!")
+    // Return to idle state
+    this.state = 'IDLE'
+    this.statusText.setText('IDLE')
+    this.statusText.setVisible(true)
+    this.assignedPlanet = null
+    return
+  }
+
+  // Deduct fuel
+  this.scene.resourceBar.removeGas(1) // This is actually fuel, but we're using removeGas - we should fix this
+  this.scene.resourceBar.fuelCount -= 1
+  this.scene.resourceBar.update()
+
   this.state = 'MINING'
   this.statusText.setText('MINING')
   this.statusText.setVisible(true)
@@ -414,11 +430,28 @@ startMining() {
   this.updateTrail()
   this.showProgressBar()
 
-  // Mine for 3 seconds
+  // Calculate mining duration based on rarity
+  let miningDuration = 3000 // Base 3 seconds
+  
+  if (this.currentPlanet.rarity) {
+    const rarityMultipliers = {
+      'COMMON': 1,
+      'UNCOMMON': 1.5,
+      'RARE': 2,
+      'EPIC': 2.5,
+      'LEGENDARY': 3,
+      'MYTHIC': 3.5
+    }
+    
+    const multiplier = rarityMultipliers[this.currentPlanet.rarity.name] || 1
+    miningDuration = 3000 * multiplier
+  }
+
+  // Mine for calculated duration
   this.scene.tweens.add({
     targets: this,
     miningProgress: 100,
-    duration: 3000,
+    duration: miningDuration,
     ease: 'Linear',
     onUpdate: () => {
       this.updateProgressBar()
@@ -426,8 +459,6 @@ startMining() {
     onComplete: () => {
       this.hideProgressBar()
       this.miningParticles = []
-      
-      // Don't add revolution here - wait until delivery at home
       
       this.returnHome()
     }

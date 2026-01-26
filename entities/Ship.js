@@ -405,24 +405,28 @@ recallToHome() {
 
 
 startMining() {
-  // Check if we have fuel
-  if (this.scene.resourceBar.fuelCount < 1) {
-    console.log("Not enough fuel to mine!")
-    // Return to idle state
-    this.state = 'IDLE'
-    this.statusText.setText('IDLE')
-    this.statusText.setVisible(true)
-    this.assignedPlanet = null
-    return
+  const isGasPlanet = this.currentPlanet.type === 'gas'
+  
+  // Only check fuel for mineral planets
+  if (!isGasPlanet) {
+    if (this.scene.resourceBar.fuelCount < 1) {
+      console.log("Not enough fuel to mine!")
+      // Return to idle state
+      this.state = 'IDLE'
+      this.statusText.setText('IDLE')
+      this.statusText.setVisible(true)
+      this.assignedPlanet = null
+      return
+    }
+
+    // Deduct fuel for mineral planets
+    this.scene.resourceBar.fuelCount -= 1
+    this.scene.resourceBar.update()
   }
 
-  // Deduct fuel
-  this.scene.resourceBar.removeGas(1) // This is actually fuel, but we're using removeGas - we should fix this
-  this.scene.resourceBar.fuelCount -= 1
-  this.scene.resourceBar.update()
-
   this.state = 'MINING'
-  this.statusText.setText('MINING')
+  // Use different text for gas planets
+  this.statusText.setText(isGasPlanet ? 'EXTRACTING' : 'MINING')
   this.statusText.setVisible(true)
   this.miningProgress = 0
   this.miningParticles = []

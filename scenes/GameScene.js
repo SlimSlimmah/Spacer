@@ -1483,6 +1483,43 @@ createZoomButtons() {
 
 
 
+createRefineryButton() {
+  const fontSize = this.isMobile ? '16px' : '14px'
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileButtonRow4 = this.isMobile ? resourceBarHeight + 220 : 250
+
+  const buttonStyle = {
+    fontSize: fontSize,
+    color: '#ff6600',
+    backgroundColor: '#1a2a3a',
+    padding: { x: 8, y: 6 },
+    align: 'center'
+  }
+
+  if (this.isMobile) {
+    this.refineryBtn = this.add.text(this.scale.width / 2, mobileButtonRow4, 'REFINERY', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive()
+      .setDepth(100)
+      .setScrollFactor(0)
+  } else {
+    this.refineryBtn = this.add.text(this.scale.width - 70, 375, 'REFINERY', buttonStyle)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setDepth(100)
+  }
+
+  this.cameras.main.ignore([this.refineryBtn])
+
+  this.refineryBtn.on('pointerup', (pointer) => {
+    pointer.event.stopPropagation()
+    this.refineryPanel.show()
+  })
+}
+
+
+
+
 
 createDealershipButton() {
   const fontSize = this.isMobile ? '14px' : '14px'

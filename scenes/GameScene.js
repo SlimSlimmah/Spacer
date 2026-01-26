@@ -251,8 +251,9 @@ class ResearchPanel {
     })
     this.container.add(this.closeBtn)
 
-    // Scrollable content container
-    this.scrollContainer = scene.add.container(0, -panelHeight/2 + 70)
+    // Scrollable content container - start at top of content area
+    this.contentStartY = -panelHeight/2 + 70
+    this.scrollContainer = scene.add.container(0, this.contentStartY)
     this.container.add(this.scrollContainer)
 
     this.scrollY = 0
@@ -271,14 +272,14 @@ class ResearchPanel {
     this.repositionUpgrades()
 
     // Scrolling with mouse wheel
-    this.scrollListener = scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+    scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
       if (this.isVisible) {
         this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.3, 0, this.maxScrollY)
         this.updateScrollPosition()
       }
     })
 
-    // Touch/drag scrolling - make the container interactive instead of bg
+    // Touch/drag scrolling
     this.container.setInteractive(
       new Phaser.Geom.Rectangle(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight),
       Phaser.Geom.Rectangle.Contains
@@ -304,8 +305,8 @@ class ResearchPanel {
       this.isDragging = false
     })
 
-    // Click anywhere to close (similar to planet popup)
-    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+    // Click anywhere to close
+    scene.input.on('pointerup', (pointer) => {
       if (this.isVisible && !this.justOpened && !this.isDragging) {
         const screenX = pointer.x
         const screenY = pointer.y
@@ -373,16 +374,17 @@ class ResearchPanel {
     this.scrollContainer.add(levelText)
 
     // Purchase button
-    const btnText = item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? 'PURCHASED' : (item.cost === 0 ? 'FREE' : `${item.cost} Credits`)
+    const isRepeatable = item.id === 'thrusters' || item.id === 'planetDatabase' || item.id === 'shipHangar'
+    const btnText = item.isPurchased && !isRepeatable ? 'PURCHASED' : (item.cost === 0 ? 'FREE' : `${item.cost} Credits`)
     const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
       fontSize: '16px',
-      color: item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? '#666666' : '#00ff00',
-      backgroundColor: item.isPurchased && item.id !== 'thrusters' && item.id !== 'planetDatabase' && item.id !== 'shipHangar' ? '#333333' : '#2a4a2a',
+      color: item.isPurchased && !isRepeatable ? '#666666' : '#00ff00',
+      backgroundColor: item.isPurchased && !isRepeatable ? '#333333' : '#2a4a2a',
       padding: { x: 15, y: 8 }
     })
     purchaseBtn.setOrigin(0.5)
     
-    if (!item.isPurchased || item.id === 'thrusters' || item.id === 'planetDatabase' || item.id === 'shipHangar') {
+    if (!item.isPurchased || isRepeatable) {
       purchaseBtn.setInteractive({ useHandCursor: true })
       purchaseBtn.on('pointerdown', (pointer) => {
         pointer.event.stopPropagation()
@@ -417,16 +419,14 @@ class ResearchPanel {
       }
     })
 
-    // Sort: unpurchased first, then purchased (except for repeatable upgrades)
+    // Sort: repeatable upgrades first, then unpurchased, then purchased
     const sortedItems = [...this.upgradeItems].sort((a, b) => {
       const aRepeatable = a.id === 'thrusters' || a.id === 'planetDatabase' || a.id === 'shipHangar'
       const bRepeatable = b.id === 'thrusters' || b.id === 'planetDatabase' || b.id === 'shipHangar'
       
-      // Repeatable upgrades always at top
       if (aRepeatable && !bRepeatable) return -1
       if (!aRepeatable && bRepeatable) return 1
       
-      // Then sort by purchased status
       if (!a.isPurchased && b.isPurchased) return -1
       if (a.isPurchased && !b.isPurchased) return 1
       
@@ -437,15 +437,19 @@ class ResearchPanel {
     let yOffset = 0
     sortedItems.forEach(item => {
       this.renderUpgradeItem(item, yOffset)
-      yOffset += 90 // 70px item + 20px spacing
+      yOffset += 90
     })
 
-    // Calculate max scroll
-    this.maxScrollY = Math.max(0, yOffset - 330) // 330 is visible height
+    // Calculate max scroll (visible area is ~400px)
+    this.maxScrollY = Math.max(0, yOffset - 400)
+    
+    // Reset scroll to top
+    this.scrollY = 0
+    this.updateScrollPosition()
   }
 
   updateScrollPosition() {
-    this.scrollContainer.setY(-this.scrollY - 250 + 70)
+    this.scrollContainer.setY(this.contentStartY - this.scrollY)
   }
 
   purchaseUpgrade(id) {
@@ -480,7 +484,6 @@ class ResearchPanel {
       this.scene.research.planetDatabaseLevel = (this.scene.research.planetDatabaseLevel || 0) + 1
       item.level = this.scene.research.planetDatabaseLevel
       
-      // Increase max planets by 5
       this.scene.maxPlanets += 5
       if (this.scene.resourceBar) {
         this.scene.resourceBar.updatePlanetCount(this.scene.planets.length, this.scene.maxPlanets)
@@ -491,7 +494,6 @@ class ResearchPanel {
       this.scene.research.shipHangarLevel = (this.scene.research.shipHangarLevel || 0) + 1
       item.level = this.scene.research.shipHangarLevel
       
-      // Increase max ships by 5
       this.scene.maxShips += 5
       if (this.scene.resourceBar) {
         this.scene.resourceBar.updateShipCount(this.scene.ships.length, this.scene.maxShips)

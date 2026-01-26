@@ -250,6 +250,8 @@ class ResearchPanel {
     this.upgradeItems = []
     this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection', -70)
     this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters', 20)
+	this.createUpgradeItem('Fuel Refinement', 'Unlocks Refinery', 0, 'fuelRefinement', 60)
+
 
     // Click anywhere to close (similar to planet popup)
     this.closeListener = this.scene.input.on('pointerup', (pointer) => {
@@ -339,33 +341,45 @@ class ResearchPanel {
     this.upgradeItems.push(item)
   }
 
-  purchaseUpgrade(id) {
-    if (id === 'planetDetection') {
-      if (!this.scene.research.planetDetection) {
-        this.scene.research.planetDetection = true
-        this.scene.scanBtn.setVisible(true)
-        
-        // Update UI to show purchased
-        const item = this.upgradeItems.find(i => i.id === 'planetDetection')
-        item.purchaseBtn.setText('PURCHASED')
-        item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
-        item.purchaseBtn.disableInteractive()
-      }
-    } else if (id === 'thrusters') {
-      this.scene.research.thrustersLevel++
-      const level = this.scene.research.thrustersLevel
+
+
+purchaseUpgrade(id) {
+  if (id === 'planetDetection') {
+    if (!this.scene.research.planetDetection) {
+      this.scene.research.planetDetection = true
+      this.scene.scanBtn.setVisible(true)
       
-      // Apply speed boost to all ships
-      const speedMultiplier = 1 + (level * 0.1)
-      this.scene.ships.forEach(ship => {
-        ship.applySpeedMultiplier(speedMultiplier)
-      })
+      const item = this.upgradeItems.find(i => i.id === 'planetDetection')
+      item.purchaseBtn.setText('PURCHASED')
+      item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
+      item.purchaseBtn.disableInteractive()
+    }
+  } else if (id === 'thrusters') {
+    this.scene.research.thrustersLevel++
+    const level = this.scene.research.thrustersLevel
+    
+    const speedMultiplier = 1 + (level * 0.1)
+    this.scene.ships.forEach(ship => {
+      ship.applySpeedMultiplier(speedMultiplier)
+    })
+    
+    const item = this.upgradeItems.find(i => i.id === 'thrusters')
+    item.levelText.setText(`Level: ${level}`)
+  } else if (id === 'fuelRefinement') {
+    if (!this.scene.research.fuelRefinement) {
+      this.scene.research.fuelRefinement = true
+      this.scene.refineryBtn.setVisible(true)
       
-      // Update UI
-      const item = this.upgradeItems.find(i => i.id === 'thrusters')
-      item.levelText.setText(`Level: ${level}`)
+      const item = this.upgradeItems.find(i => i.id === 'fuelRefinement')
+      item.purchaseBtn.setText('PURCHASED')
+      item.purchaseBtn.setStyle({ color: '#666666', backgroundColor: '#333333' })
+      item.purchaseBtn.disableInteractive()
     }
   }
+}
+
+
+
 
   show() {
     this.isVisible = true
@@ -537,6 +551,7 @@ class ResourceBar {
     this.scene = scene
     this.resources = {}
     this.gasCount = 0
+    this.fuelCount = 0
     
     // Safe area padding for mobile
     const topPadding = scene.isMobile ? 80 : 0
@@ -560,23 +575,6 @@ class ResourceBar {
     // Container for resource items (will be updated dynamically)
     this.resourceItems = []
     
-    // Gas counter with icon - positioned on the right, top
-    this.gasContainer = scene.add.container(barWidth - 150, barHeight / 2 - 10)
-    this.container.add(this.gasContainer)
-    
-    // Gas can icon
-    this.gasIcon = scene.add.graphics()
-    this.drawGasCanIcon(this.gasIcon, 0, 0)
-    this.gasContainer.add(this.gasIcon)
-    
-    this.gasCountText = scene.add.text(20, 0, '0', {
-      fontSize: '14px',
-      color: '#ffcc00',
-      fontStyle: 'bold'
-    })
-    this.gasCountText.setOrigin(0, 0.5)
-    this.gasContainer.add(this.gasCountText)
-    
     // Planet count
     this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 10, 'PLANETS: 2/10', {
       fontSize: '14px',
@@ -599,23 +597,23 @@ class ResourceBar {
     this.update()
   }
   
-  drawGasCanIcon(graphics, x, y) {
-    // Simple gas can icon
-    graphics.lineStyle(2, 0xffcc00, 1)
-    graphics.fillStyle(0xffcc00, 0.3)
-    
-    // Can body
-    graphics.fillRect(x - 6, y - 6, 12, 12)
-    graphics.strokeRect(x - 6, y - 6, 12, 12)
-    
-    // Spout
-    graphics.fillRect(x + 4, y - 10, 4, 6)
-    graphics.strokeRect(x + 4, y - 10, 4, 6)
-  }
-  
   addGas(amount) {
     this.gasCount += amount
-    this.gasCountText.setText(this.gasCount.toString())
+    this.update()
+  }
+  
+  addFuel(amount) {
+    this.fuelCount += amount
+    this.update()
+  }
+  
+  removeGas(amount) {
+    if (this.gasCount >= amount) {
+      this.gasCount -= amount
+      this.update()
+      return true
+    }
+    return false
   }
   
   addRevolution(rarity) {
@@ -672,6 +670,50 @@ class ResourceBar {
       
       xOffset += 50 + (data.count.toString().length * 10)
     }
+    
+    // Add Gas (G) counter
+    if (xOffset > 20) xOffset += 20 // Add spacing after minerals
+    
+    const gasLabel = this.scene.add.text(xOffset, yCenter, 'G', {
+      fontSize: '16px',
+      color: '#ffcc00',
+      fontStyle: 'bold'
+    })
+    gasLabel.setOrigin(0, 0.5)
+    this.container.add(gasLabel)
+    this.resourceItems.push(gasLabel)
+    
+    const gasCount = this.scene.add.text(xOffset + 15, yCenter, this.gasCount.toString(), {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+    gasCount.setOrigin(0, 0.5)
+    this.container.add(gasCount)
+    this.resourceItems.push(gasCount)
+    
+    xOffset += 35 + (this.gasCount.toString().length * 10)
+    
+    // Add Fuel (F) counter
+    xOffset += 20 // Spacing
+    
+    const fuelLabel = this.scene.add.text(xOffset, yCenter, 'F', {
+      fontSize: '16px',
+      color: '#ff6600',
+      fontStyle: 'bold'
+    })
+    fuelLabel.setOrigin(0, 0.5)
+    this.container.add(fuelLabel)
+    this.resourceItems.push(fuelLabel)
+    
+    const fuelCount = this.scene.add.text(xOffset + 15, yCenter, this.fuelCount.toString(), {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    })
+    fuelCount.setOrigin(0, 0.5)
+    this.container.add(fuelCount)
+    this.resourceItems.push(fuelCount)
   }
   
   resize(width) {
@@ -683,7 +725,6 @@ class ResourceBar {
     this.bg.lineBetween(0, 40, width, 40)
     
     // Reposition counters
-    this.gasContainer.setPosition(width - 150, 10)
     this.planetCountText.setPosition(width - 20, 10)
     this.shipCountText.setPosition(width - 20, 30)
   }
@@ -693,10 +734,253 @@ class ResourceBar {
   }
 }
 
+
+
+
+// RefineryPanel class
+class RefineryPanel {
+  constructor(scene) {
+    this.scene = scene
+    this.isVisible = false
+    this.justOpened = false
+    this.isRefining = false
+    this.refineProgress = 0
+
+    // Create panel container
+    this.container = scene.add.container(0, 0)
+    this.container.setDepth(250)
+    this.container.setVisible(false)
+    this.container.setScrollFactor(0)
+
+    const panelWidth = 400
+    const panelHeight = 300
+
+    // Background
+    this.bg = scene.add.graphics()
+    this.bg.fillStyle(0x0a0f1a, 0.98)
+    this.bg.fillRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.bg.lineStyle(3, 0xff6600, 1)
+    this.bg.strokeRoundedRect(-panelWidth/2, -panelHeight/2, panelWidth, panelHeight, 12)
+    this.container.add(this.bg)
+
+    // Title
+    this.titleText = scene.add.text(0, -panelHeight/2 + 30, 'REFINERY', {
+      fontSize: '24px',
+      color: '#ff6600',
+      fontStyle: 'bold',
+      align: 'center'
+    })
+    this.titleText.setOrigin(0.5)
+    this.container.add(this.titleText)
+
+    // Close button (X)
+    this.closeBtn = scene.add.text(panelWidth/2 - 30, -panelHeight/2 + 30, '×', {
+      fontSize: '32px',
+      color: '#ff6666',
+      fontStyle: 'bold'
+    })
+    this.closeBtn.setOrigin(0.5)
+    this.closeBtn.setInteractive({ useHandCursor: true })
+    this.closeBtn.on('pointerup', () => this.hide())
+    this.container.add(this.closeBtn)
+
+    // Info text
+    this.infoText = scene.add.text(0, -40, 'Convert Gas into Fuel\n1 Gas → 1 Fuel (10 seconds)', {
+      fontSize: '16px',
+      color: '#aaaaaa',
+      align: 'center'
+    })
+    this.infoText.setOrigin(0.5)
+    this.container.add(this.infoText)
+
+    // Resource display
+    this.gasText = scene.add.text(0, 10, 'Gas: 0', {
+      fontSize: '18px',
+      color: '#ffcc00',
+      fontStyle: 'bold'
+    })
+    this.gasText.setOrigin(0.5)
+    this.container.add(this.gasText)
+
+    this.fuelText = scene.add.text(0, 40, 'Fuel: 0', {
+      fontSize: '18px',
+      color: '#ff6600',
+      fontStyle: 'bold'
+    })
+    this.fuelText.setOrigin(0.5)
+    this.container.add(this.fuelText)
+
+    // Progress bar (hidden initially)
+    this.progressBg = scene.add.graphics()
+    this.progressBg.setVisible(false)
+    this.container.add(this.progressBg)
+
+    this.progressFill = scene.add.graphics()
+    this.progressFill.setVisible(false)
+    this.container.add(this.progressFill)
+
+    this.progressText = scene.add.text(0, 90, '', {
+      fontSize: '14px',
+      color: '#ffffff'
+    })
+    this.progressText.setOrigin(0.5)
+    this.progressText.setVisible(false)
+    this.container.add(this.progressText)
+
+    // Refine button
+    this.refineBtn = scene.add.text(0, 120, 'REFINE GAS', {
+      fontSize: '18px',
+      color: '#ffffff',
+      backgroundColor: '#ff6600',
+      padding: { x: 20, y: 10 }
+    })
+    this.refineBtn.setOrigin(0.5)
+    this.refineBtn.setInteractive({ useHandCursor: true })
+    this.refineBtn.on('pointerdown', (pointer) => {
+      pointer.event.stopPropagation()
+    })
+    this.refineBtn.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.startRefining()
+    })
+    this.container.add(this.refineBtn)
+
+    // Click anywhere to close
+    this.closeListener = this.scene.input.on('pointerup', (pointer) => {
+      if (this.isVisible && !this.justOpened && !this.isRefining) {
+        const screenX = pointer.x
+        const screenY = pointer.y
+        
+        const panelCenterX = this.scene.scale.width / 2
+        const panelCenterY = this.scene.scale.height / 2
+        const halfWidth = panelWidth / 2
+        const halfHeight = panelHeight / 2
+        
+        const bounds = new Phaser.Geom.Rectangle(
+          panelCenterX - halfWidth,
+          panelCenterY - halfHeight,
+          panelWidth,
+          panelHeight
+        )
+        
+        if (!Phaser.Geom.Rectangle.Contains(bounds, screenX, screenY)) {
+          this.hide()
+        }
+      }
+    })
+  }
+
+  startRefining() {
+    if (this.isRefining) return
+    
+    // Check if we have gas
+    if (this.scene.resourceBar.gasCount < 1) {
+      console.log("Not enough gas!")
+      return
+    }
+
+    // Remove gas
+    if (!this.scene.resourceBar.removeGas(1)) {
+      return
+    }
+
+    this.isRefining = true
+    this.refineProgress = 0
+    this.refineBtn.setStyle({ backgroundColor: '#666666' })
+    this.refineBtn.disableInteractive()
+    
+    this.progressBg.setVisible(true)
+    this.progressFill.setVisible(true)
+    this.progressText.setVisible(true)
+
+    // 10 second refine
+    this.scene.tweens.add({
+      targets: this,
+      refineProgress: 100,
+      duration: 10000,
+      ease: 'Linear',
+      onUpdate: () => {
+        this.updateProgressBar()
+      },
+      onComplete: () => {
+        // Add fuel
+        this.scene.resourceBar.addFuel(1)
+        
+        this.isRefining = false
+        this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
+        this.refineBtn.setInteractive({ useHandCursor: true })
+        
+        this.progressBg.setVisible(false)
+        this.progressFill.setVisible(false)
+        this.progressText.setVisible(false)
+        
+        this.updateResourceDisplay()
+      }
+    })
+  }
+
+  updateProgressBar() {
+    const barWidth = 300
+    const barHeight = 20
+    const barX = -barWidth / 2
+    const barY = 70
+
+    // Background
+    this.progressBg.clear()
+    this.progressBg.fillStyle(0x333333, 1)
+    this.progressBg.fillRect(barX, barY, barWidth, barHeight)
+
+    // Fill
+    this.progressFill.clear()
+    this.progressFill.fillStyle(0xff6600, 1)
+    this.progressFill.fillRect(barX, barY, (barWidth * this.refineProgress) / 100, barHeight)
+
+    this.progressText.setText(`Refining... ${Math.floor(this.refineProgress)}%`)
+  }
+
+  updateResourceDisplay() {
+    this.gasText.setText(`Gas: ${this.scene.resourceBar.gasCount}`)
+    this.fuelText.setText(`Fuel: ${this.scene.resourceBar.fuelCount}`)
+  }
+
+  show() {
+    this.isVisible = true
+    this.justOpened = true
+    
+    const centerX = this.scene.scale.width / 2
+    const centerY = this.scene.scale.height / 2
+    this.container.setPosition(centerX, centerY)
+    this.container.setVisible(true)
+    
+    this.updateResourceDisplay()
+
+    this.scene.time.delayedCall(200, () => {
+      this.justOpened = false
+    })
+  }
+
+  hide() {
+    if (this.isRefining) return // Can't close while refining
+    
+    this.isVisible = false
+    this.container.setVisible(false)
+  }
+}
+
+
+
+
+
+
 export default class GameScene extends Phaser.Scene {
   constructor() {
     super('GameScene')
   }
+
+
+
+
+
 
 create() {
   // Detect if mobile
@@ -708,7 +992,8 @@ create() {
   // Research state
   this.research = {
     planetDetection: false,
-    thrustersLevel: 0
+    thrustersLevel: 0,
+    fuelRefinement: false
   }
 
   // Limits
@@ -744,8 +1029,11 @@ create() {
   
   // Create dealership panel
   this.dealershipPanel = new DealershipPanel(this)
+  
+  // Create refinery panel
+  this.refineryPanel = new RefineryPanel(this)
 
-// Second planet (gray COMMON level 1)
+  // Second planet (gray COMMON level 1)
   const commonRarity = { 
     name: 'COMMON', 
     ringBase: 0x999999, 
@@ -756,48 +1044,55 @@ create() {
   // Gas planet (yellow/orange swirls)
   this.addPlanet(cx - 200, cy + 150, 0x8a6a2d, 0xddaa44, 'GAS PLANET', 80, '#ddaa44', null, 'gas')
 
+  // Camera pan setup
+  this.isPanning = false
+  this.panStartX = 0
+  this.panStartY = 0
 
-    // Camera pan setup
+  this.input.on('pointerdown', (pointer) => {
+    this.isPanning = true
+    this.panStartX = pointer.x + this.cameras.main.scrollX
+    this.panStartY = pointer.y + this.cameras.main.scrollY
+  })
+
+  this.input.on('pointermove', (pointer) => {
+    if (this.isPanning) {
+      this.cameras.main.scrollX = this.panStartX - pointer.x
+      this.cameras.main.scrollY = this.panStartY - pointer.y
+    }
+  })
+
+  this.input.on('pointerup', () => {
     this.isPanning = false
-    this.panStartX = 0
-    this.panStartY = 0
+  })
 
-    this.input.on('pointerdown', (pointer) => {
-      this.isPanning = true
-      this.panStartX = pointer.x + this.cameras.main.scrollX
-      this.panStartY = pointer.y + this.cameras.main.scrollY
-    })
+  // Mouse wheel zoom - zoom range: 0.2 - 3
+  this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+    const zoomAmount = deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.2, 3)
+    this.cameras.main.setZoom(newZoom)
+  })
+  
+  // UI buttons
+  this.createZoomButtons()
+  this.createScanButton()
+  this.createResearchButton()
+  this.createDealershipButton()
+  this.createRefineryButton()
 
-    this.input.on('pointermove', (pointer) => {
-      if (this.isPanning) {
-        this.cameras.main.scrollX = this.panStartX - pointer.x
-        this.cameras.main.scrollY = this.panStartY - pointer.y
-      }
-    })
+  // Hide scan button until Planet Detection is researched
+  this.scanBtn.setVisible(false)
+  
+  // Hide refinery button until Fuel Refinement is researched
+  this.refineryBtn.setVisible(false)
 
-    this.input.on('pointerup', () => {
-      this.isPanning = false
-    })
+  // Handle window resize
+  this.scale.on('resize', this.handleResize, this)
+}
 
-    // Mouse wheel zoom - zoom range: 0.2 - 3
-    this.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-      const zoomAmount = deltaY > 0 ? -0.1 : 0.1
-      const newZoom = Phaser.Math.Clamp(this.cameras.main.zoom + zoomAmount, 0.2, 3)
-      this.cameras.main.setZoom(newZoom)
-    })
-    
-    // UI buttons
-    this.createZoomButtons()
-    this.createScanButton()
-    this.createResearchButton()
-    this.createDealershipButton()
 
-    // Hide scan button until Planet Detection is researched
-    this.scanBtn.setVisible(false)
 
-    // Handle window resize
-    this.scale.on('resize', this.handleResize, this)
-  }
+
 
 
 
@@ -1006,12 +1301,14 @@ handleResize(gameSize) {
   const mobileTopPadding = this.isMobile ? resourceBarHeight + 10 : 50
   const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
   const mobileButtonRow3 = this.isMobile ? resourceBarHeight + 150 : 180
+  const mobileButtonRow4 = this.isMobile ? resourceBarHeight + 220 : 250
 
   // Resize resource bar
   if (this.resourceBar) {
     this.resourceBar.resize(gameSize.width)
   }
 
+  // Reposition UI elements on resize
   if (this.zoomInBtn && this.zoomOutBtn) {
     if (this.isMobile) {
       this.zoomOutBtn.setPosition(gameSize.width / 2 - 70, mobileTopPadding)
@@ -1043,6 +1340,14 @@ handleResize(gameSize) {
       this.researchBtn.setPosition(gameSize.width / 2, mobileButtonRow3)
     } else {
       this.researchBtn.setPosition(gameSize.width - 70, 310)
+    }
+  }
+
+  if (this.refineryBtn) {
+    if (this.isMobile) {
+      this.refineryBtn.setPosition(gameSize.width / 2, mobileButtonRow4)
+    } else {
+      this.refineryBtn.setPosition(gameSize.width - 70, 375)
     }
   }
 }

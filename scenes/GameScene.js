@@ -889,7 +889,7 @@ class ResourceBar {
 
 
 // RefineryPanel class
-// RefineryPanel class
+// RefineryPanel class - update constructor and methods
 class RefineryPanel {
   constructor(scene) {
     this.scene = scene
@@ -937,14 +937,14 @@ class RefineryPanel {
     this.closeBtn.on('pointerup', () => this.hide())
     this.container.add(this.closeBtn)
 
-    // Info text
-this.infoText = scene.add.text(0, -60, 'Convert Gas into Fuel\n1 Gas → 2 Fuel (10 seconds)', {
-  fontSize: '16px',
-  color: '#aaaaaa',
-  align: 'center'
-})
-this.infoText.setOrigin(0.5)
-this.container.add(this.infoText)
+    // Info text - will be updated dynamically
+    this.infoText = scene.add.text(0, -60, '', {
+      fontSize: '16px',
+      color: '#aaaaaa',
+      align: 'center'
+    })
+    this.infoText.setOrigin(0.5)
+    this.container.add(this.infoText)
 
     // Resource display
     this.gasText = scene.add.text(0, -10, 'Gas: 0', {
@@ -1049,6 +1049,11 @@ this.container.add(this.infoText)
     })
   }
 
+  updateInfoText() {
+    const fuelOutput = 2 + (this.scene.research.refineryEfficiencyLevel || 0)
+    this.infoText.setText(`Convert Gas into Fuel\n1 Gas → ${fuelOutput} Fuel (10 seconds)`)
+  }
+
   toggleAutoRefine() {
     this.autoRefine = !this.autoRefine
     
@@ -1069,6 +1074,13 @@ this.container.add(this.infoText)
       }
     } else {
       this.autoRefineCheckmark.setVisible(false)
+    }
+  }
+
+  tryAutoRefine() {
+    // Called when gas is delivered - check if we should auto-refine
+    if (this.autoRefine && !this.isRefining && this.scene.resourceBar.gasCount >= 1) {
+      this.startRefining()
     }
   }
 
@@ -1104,26 +1116,26 @@ this.container.add(this.infoText)
       onUpdate: () => {
         this.updateProgressBar()
       },
-onComplete: () => {
-  // Add fuel based on efficiency level (base 2 + upgrades)
-  const fuelAmount = 2 + (this.scene.research.refineryEfficiencyLevel || 0)
-  this.scene.resourceBar.addFuel(fuelAmount)
-  
-  this.isRefining = false
-  this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
-  this.refineBtn.setInteractive({ useHandCursor: true })
-  
-  this.progressBg.setVisible(false)
-  this.progressFill.setVisible(false)
-  this.progressText.setVisible(false)
-  
-  this.updateResourceDisplay()
-  
-  // If auto-refine is on, start next refine
-  if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
-    this.startRefining()
-  }
-}
+      onComplete: () => {
+        // Add fuel based on efficiency level (base 2 + upgrades)
+        const fuelAmount = 2 + (this.scene.research.refineryEfficiencyLevel || 0)
+        this.scene.resourceBar.addFuel(fuelAmount)
+        
+        this.isRefining = false
+        this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
+        this.refineBtn.setInteractive({ useHandCursor: true })
+        
+        this.progressBg.setVisible(false)
+        this.progressFill.setVisible(false)
+        this.progressText.setVisible(false)
+        
+        this.updateResourceDisplay()
+        
+        // If auto-refine is on, start next refine
+        if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
+          this.startRefining()
+        }
+      }
     })
   }
 
@@ -1160,6 +1172,7 @@ onComplete: () => {
     this.container.setPosition(centerX, centerY)
     this.container.setVisible(true)
     
+    this.updateInfoText()
     this.updateResourceDisplay()
 
     this.scene.time.delayedCall(200, () => {

@@ -223,6 +223,11 @@ returnHome() {
       if (this.scene.resourceBar && this.assignedPlanet) {
         if (this.assignedPlanet.type === 'gas') {
           this.scene.resourceBar.addGas(1)
+          
+          // Trigger auto-refine if enabled
+          if (this.scene.refineryPanel) {
+            this.scene.refineryPanel.tryAutoRefine()
+          }
         } else if (this.assignedPlanet.rarity) {
           this.scene.resourceBar.addRevolution(this.assignedPlanet.rarity)
         }

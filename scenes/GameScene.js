@@ -266,6 +266,7 @@ class ResearchPanel {
     this.createUpgradeItem('Planet Detection', 'Scans for Planets', 0, 'planetDetection')
     this.createUpgradeItem('Thrusters', 'Increases Ship Speed by 10%', 0, 'thrusters')
     this.createUpgradeItem('Fuel Refinement', 'Unlocks Refinery', 0, 'fuelRefinement')
+	this.createUpgradeItem('Refinery Efficiency', 'Increases Fuel Output by 1', 0, 'refineryEfficiency')
     this.createUpgradeItem('Planet Database', 'Increases Planet Capacity by 5', 0, 'planetDatabase')
     this.createUpgradeItem('Ship Hangar', 'Increases Ship Capacity by 5', 0, 'shipHangar')
 
@@ -374,7 +375,7 @@ class ResearchPanel {
     this.scrollContainer.add(levelText)
 
     // Purchase button
-    const isRepeatable = item.id === 'thrusters' || item.id === 'planetDatabase' || item.id === 'shipHangar'
+    const isRepeatable = item.id === 'thrusters' || item.id === 'planetDatabase' || item.id === 'shipHangar' || item.id === 'refineryEfficiency'
     const btnText = item.isPurchased && !isRepeatable ? 'PURCHASED' : (item.cost === 0 ? 'FREE' : `${item.cost} Credits`)
     const purchaseBtn = this.scene.add.text(120, yOffset + 35, btnText, {
       fontSize: '16px',
@@ -419,19 +420,23 @@ class ResearchPanel {
       }
     })
 
-    // Sort: repeatable upgrades first, then unpurchased, then purchased
-    const sortedItems = [...this.upgradeItems].sort((a, b) => {
-      const aRepeatable = a.id === 'thrusters' || a.id === 'planetDatabase' || a.id === 'shipHangar'
-      const bRepeatable = b.id === 'thrusters' || b.id === 'planetDatabase' || b.id === 'shipHangar'
-      
-      if (aRepeatable && !bRepeatable) return -1
-      if (!aRepeatable && bRepeatable) return 1
-      
-      if (!a.isPurchased && b.isPurchased) return -1
-      if (a.isPurchased && !b.isPurchased) return 1
-      
-      return 0
-    })
+
+
+const sortedItems = [...this.upgradeItems].sort((a, b) => {
+  const aRepeatable = a.id === 'thrusters' || a.id === 'planetDatabase' || a.id === 'shipHangar' || a.id === 'refineryEfficiency'
+  const bRepeatable = b.id === 'thrusters' || b.id === 'planetDatabase' || b.id === 'shipHangar' || b.id === 'refineryEfficiency'
+  
+  if (aRepeatable && !bRepeatable) return -1
+  if (!aRepeatable && bRepeatable) return 1
+  
+  if (!a.isPurchased && b.isPurchased) return -1
+  if (a.isPurchased && !b.isPurchased) return 1
+  
+  return 0
+})
+
+
+
 
     // Render all items
     let yOffset = 0
@@ -452,56 +457,67 @@ class ResearchPanel {
     this.scrollContainer.setY(this.contentStartY - this.scrollY)
   }
 
-  purchaseUpgrade(id) {
-    const item = this.upgradeItems.find(i => i.id === id)
-    if (!item) return
 
-    if (id === 'planetDetection') {
-      if (!this.scene.research.planetDetection) {
-        this.scene.research.planetDetection = true
-        this.scene.scanBtn.setVisible(true)
-        item.isPurchased = true
-        this.repositionUpgrades()
-      }
-    } else if (id === 'thrusters') {
-      this.scene.research.thrustersLevel++
-      item.level = this.scene.research.thrustersLevel
-      
-      const speedMultiplier = 1 + (item.level * 0.1)
-      this.scene.ships.forEach(ship => {
-        ship.applySpeedMultiplier(speedMultiplier)
-      })
-      
-      this.repositionUpgrades()
-    } else if (id === 'fuelRefinement') {
-      if (!this.scene.research.fuelRefinement) {
-        this.scene.research.fuelRefinement = true
-        this.scene.refineryBtn.setVisible(true)
-        item.isPurchased = true
-        this.repositionUpgrades()
-      }
-    } else if (id === 'planetDatabase') {
-      this.scene.research.planetDatabaseLevel = (this.scene.research.planetDatabaseLevel || 0) + 1
-      item.level = this.scene.research.planetDatabaseLevel
-      
-      this.scene.maxPlanets += 5
-      if (this.scene.resourceBar) {
-        this.scene.resourceBar.updatePlanetCount(this.scene.planets.length, this.scene.maxPlanets)
-      }
-      
-      this.repositionUpgrades()
-    } else if (id === 'shipHangar') {
-      this.scene.research.shipHangarLevel = (this.scene.research.shipHangarLevel || 0) + 1
-      item.level = this.scene.research.shipHangarLevel
-      
-      this.scene.maxShips += 5
-      if (this.scene.resourceBar) {
-        this.scene.resourceBar.updateShipCount(this.scene.ships.length, this.scene.maxShips)
-      }
-      
+
+purchaseUpgrade(id) {
+  const item = this.upgradeItems.find(i => i.id === id)
+  if (!item) return
+
+  if (id === 'planetDetection') {
+    if (!this.scene.research.planetDetection) {
+      this.scene.research.planetDetection = true
+      this.scene.scanBtn.setVisible(true)
+      item.isPurchased = true
       this.repositionUpgrades()
     }
+  } else if (id === 'thrusters') {
+    this.scene.research.thrustersLevel++
+    item.level = this.scene.research.thrustersLevel
+    
+    const speedMultiplier = 1 + (item.level * 0.1)
+    this.scene.ships.forEach(ship => {
+      ship.applySpeedMultiplier(speedMultiplier)
+    })
+    
+    this.repositionUpgrades()
+  } else if (id === 'fuelRefinement') {
+    if (!this.scene.research.fuelRefinement) {
+      this.scene.research.fuelRefinement = true
+      this.scene.refineryBtn.setVisible(true)
+      item.isPurchased = true
+      this.repositionUpgrades()
+    }
+  } else if (id === 'refineryEfficiency') {
+    this.scene.research.refineryEfficiencyLevel = (this.scene.research.refineryEfficiencyLevel || 0) + 1
+    item.level = this.scene.research.refineryEfficiencyLevel
+    
+    this.repositionUpgrades()
+  } else if (id === 'planetDatabase') {
+    this.scene.research.planetDatabaseLevel = (this.scene.research.planetDatabaseLevel || 0) + 1
+    item.level = this.scene.research.planetDatabaseLevel
+    
+    this.scene.maxPlanets += 5
+    if (this.scene.resourceBar) {
+      this.scene.resourceBar.updatePlanetCount(this.scene.planets.length, this.scene.maxPlanets)
+    }
+    
+    this.repositionUpgrades()
+  } else if (id === 'shipHangar') {
+    this.scene.research.shipHangarLevel = (this.scene.research.shipHangarLevel || 0) + 1
+    item.level = this.scene.research.shipHangarLevel
+    
+    this.scene.maxShips += 5
+    if (this.scene.resourceBar) {
+      this.scene.resourceBar.updateShipCount(this.scene.ships.length, this.scene.maxShips)
+    }
+    
+    this.repositionUpgrades()
   }
+}
+
+
+
+
 
   show() {
     this.isVisible = true
@@ -1088,10 +1104,10 @@ this.container.add(this.infoText)
       onUpdate: () => {
         this.updateProgressBar()
       },
-      onComplete: () => {
-        // Add fuel
-  // Add 2 fuel instead of 1
-  this.scene.resourceBar.addFuel(2)
+onComplete: () => {
+  // Add fuel based on efficiency level (base 2 + upgrades)
+  const fuelAmount = 2 + (this.scene.research.refineryEfficiencyLevel || 0)
+  this.scene.resourceBar.addFuel(fuelAmount)
   
   this.isRefining = false
   this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
@@ -1106,8 +1122,8 @@ this.container.add(this.infoText)
   // If auto-refine is on, start next refine
   if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
     this.startRefining()
-        }
-      }
+  }
+}
     })
   }
 
@@ -1187,6 +1203,7 @@ this.research = {
   planetDetection: false,
   thrustersLevel: 0,
   fuelRefinement: false,
+  refineryEfficiencyLevel: 0,
   planetDatabaseLevel: 0,
   shipHangarLevel: 0
 }
@@ -1354,6 +1371,15 @@ scanForPlanet() {
     console.log("Planet limit reached!")
     return
   }
+  
+  
+    // 25% chance to fail
+  if (Math.random() < 0.25) {
+    this.showNotification('Scanner Malfunctioned!')
+    return
+  }
+  
+  
 
   let x, y, coreRadius
   let validPosition = false
@@ -1447,6 +1473,42 @@ scanForPlanet() {
     console.log("Could not find valid position for new planet after", maxAttempts, "attempts")
   }
 }
+
+
+
+showNotification(message) {
+  // Create notification text at center of screen
+  const centerX = this.cameras.main.scrollX + this.scale.width / 2
+  const centerY = this.cameras.main.scrollY + this.scale.height / 2
+  
+  const notification = this.add.text(centerX, centerY, message, {
+    fontSize: '32px',
+    color: '#ff6666',
+    backgroundColor: '#000000',
+    padding: { x: 20, y: 10 },
+    fontStyle: 'bold'
+  })
+  notification.setOrigin(0.5)
+  notification.setDepth(400)
+  notification.setScrollFactor(0) // Fixed to screen
+  
+  // Make it ignored by main camera (only UI camera renders it)
+  this.cameras.main.ignore([notification])
+  
+  // Fade out and destroy after 2 seconds
+  this.tweens.add({
+    targets: notification,
+    alpha: 0,
+    duration: 500,
+    delay: 1500,
+    onComplete: () => {
+      notification.destroy()
+    }
+  })
+}
+
+
+
 
   addShip() {
   // Check if at ship limit

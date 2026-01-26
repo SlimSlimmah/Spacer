@@ -272,13 +272,24 @@ class ResearchPanel {
 
     this.repositionUpgrades()
 
-    // Scrolling with mouse wheel
-    scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
-      if (this.isVisible) {
-        this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.3, 0, this.maxScrollY)
-        this.updateScrollPosition()
-      }
-    })
+
+
+// In ResearchPanel constructor, update the wheel listener:
+scene.input.on('wheel', (pointer, gameObjects, deltaX, deltaY, deltaZ) => {
+  if (this.isVisible) {
+    // Stop the event from propagating to game zoom
+    pointer.event.stopPropagation()
+    
+    this.scrollY = Phaser.Math.Clamp(this.scrollY + deltaY * 0.3, 0, this.maxScrollY)
+    this.updateScrollPosition()
+  }
+})
+
+
+
+
+
+
 
     // Touch/drag scrolling
     this.container.setInteractive(
@@ -687,7 +698,7 @@ class DealershipPanel {
 
 
 // ResourceBar class - update the constructor
-// ResourceBar class
+// ResourceBar class - updated styling
 class ResourceBar {
   constructor(scene) {
     this.scene = scene
@@ -695,30 +706,28 @@ class ResourceBar {
     this.gasCount = 0
     this.fuelCount = 0
     
-    // Safe area padding for mobile
     const topPadding = scene.isMobile ? 80 : 0
     
-    // Create container fixed to screen
     this.container = scene.add.container(0, topPadding)
     this.container.setDepth(300)
     this.container.setScrollFactor(0)
     
-    const barHeight = 40
+    const barHeight = 45
     const barWidth = scene.scale.width
     
-    // Background bar
+    // Background with subtle gradient effect
     this.bg = scene.add.graphics()
-    this.bg.fillStyle(0x0a0f1a, 0.95)
+    this.bg.fillGradientStyle(0x0a0f1a, 0x0a0f1a, 0x050810, 0x050810, 0.98, 0.98, 0.98, 0.98)
     this.bg.fillRect(0, 0, barWidth, barHeight)
-    this.bg.lineStyle(2, 0x66ccff, 0.5)
-    this.bg.lineBetween(0, barHeight, barWidth, barHeight)
+    this.bg.lineStyle(2, 0x66ccff, 0.3)
+    this.bg.lineBetween(0, barHeight - 1, barWidth, barHeight - 1)
     this.container.add(this.bg)
     
-    // Container for resource items (will be updated dynamically)
     this.resourceItems = []
     
-    // Planet count
-    this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 10, 'PLANETS: 2/10', {
+    // Planet count with better font
+    this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 11, 'PLANETS: 2/10', {
+      fontFamily: 'Orbitron',
       fontSize: '14px',
       color: '#66ccff',
       fontStyle: 'bold'
@@ -726,8 +735,9 @@ class ResourceBar {
     this.planetCountText.setOrigin(1, 0.5)
     this.container.add(this.planetCountText)
     
-    // Ship count (supply)
-    this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2 + 10, 'SHIPS: 1/10', {
+    // Ship count with better font
+    this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2 + 11, 'SHIPS: 1/10', {
+      fontFamily: 'Orbitron',
       fontSize: '14px',
       color: '#ffaa00',
       fontStyle: 'bold'
@@ -791,27 +801,27 @@ class ResourceBar {
   }
   
   update() {
-    // Clear existing resource items
     this.resourceItems.forEach(item => item.destroy())
     this.resourceItems = []
     
-    // Draw resource items
     let xOffset = 20
-    const yCenter = 20
+    const yCenter = 22
     
     const sortedResources = Object.entries(this.resources).sort((a, b) => b[1].count - a[1].count)
     
     for (const [rarityName, data] of sortedResources) {
-      // Colored dot
       const dot = this.scene.add.graphics()
       dot.fillStyle(data.color, 1)
-      dot.fillCircle(xOffset, yCenter, 6)
+      dot.fillCircle(xOffset, yCenter, 7)
+      // Add subtle glow
+      dot.lineStyle(2, data.color, 0.3)
+      dot.strokeCircle(xOffset, yCenter, 9)
       this.container.add(dot)
       this.resourceItems.push(dot)
       
-      // Count text
-      const countText = this.scene.add.text(xOffset + 12, yCenter, data.count.toString(), {
-        fontSize: '16px',
+      const countText = this.scene.add.text(xOffset + 14, yCenter, data.count.toString(), {
+        fontFamily: 'Rajdhani',
+        fontSize: '18px',
         color: '#ffffff',
         fontStyle: 'bold'
       })
@@ -819,14 +829,14 @@ class ResourceBar {
       this.container.add(countText)
       this.resourceItems.push(countText)
       
-      xOffset += 50 + (data.count.toString().length * 10)
+      xOffset += 55 + (data.count.toString().length * 10)
     }
     
-    // Add Gas (G) counter
-    if (xOffset > 20) xOffset += 20 // Add spacing after minerals
+    if (xOffset > 20) xOffset += 20
     
     const gasLabel = this.scene.add.text(xOffset, yCenter, 'G', {
-      fontSize: '16px',
+      fontFamily: 'Orbitron',
+      fontSize: '18px',
       color: '#ffcc00',
       fontStyle: 'bold'
     })
@@ -834,8 +844,9 @@ class ResourceBar {
     this.container.add(gasLabel)
     this.resourceItems.push(gasLabel)
     
-    const gasCount = this.scene.add.text(xOffset + 15, yCenter, this.gasCount.toString(), {
-      fontSize: '16px',
+    const gasCount = this.scene.add.text(xOffset + 18, yCenter, this.gasCount.toString(), {
+      fontFamily: 'Rajdhani',
+      fontSize: '18px',
       color: '#ffffff',
       fontStyle: 'bold'
     })
@@ -843,13 +854,12 @@ class ResourceBar {
     this.container.add(gasCount)
     this.resourceItems.push(gasCount)
     
-    xOffset += 35 + (this.gasCount.toString().length * 10)
-    
-    // Add Fuel (F) counter
-    xOffset += 20 // Spacing
+    xOffset += 40 + (this.gasCount.toString().length * 10)
+    xOffset += 20
     
     const fuelLabel = this.scene.add.text(xOffset, yCenter, 'F', {
-      fontSize: '16px',
+      fontFamily: 'Orbitron',
+      fontSize: '18px',
       color: '#ff6600',
       fontStyle: 'bold'
     })
@@ -857,8 +867,9 @@ class ResourceBar {
     this.container.add(fuelLabel)
     this.resourceItems.push(fuelLabel)
     
-    const fuelCount = this.scene.add.text(xOffset + 15, yCenter, this.fuelCount.toString(), {
-      fontSize: '16px',
+    const fuelCount = this.scene.add.text(xOffset + 18, yCenter, this.fuelCount.toString(), {
+      fontFamily: 'Rajdhani',
+      fontSize: '18px',
       color: '#ffffff',
       fontStyle: 'bold'
     })
@@ -1490,25 +1501,31 @@ scanForPlanet() {
 
 
 showNotification(message) {
-  // Create notification text at center of screen
-  const centerX = this.cameras.main.scrollX + this.scale.width / 2
-  const centerY = this.cameras.main.scrollY + this.scale.height / 2
+  const centerX = this.scale.width / 2
+  const centerY = this.scale.height / 2
   
   const notification = this.add.text(centerX, centerY, message, {
-    fontSize: '32px',
+    fontFamily: 'Orbitron',
+    fontSize: '28px',
     color: '#ff6666',
     backgroundColor: '#000000',
-    padding: { x: 20, y: 10 },
-    fontStyle: 'bold'
+    padding: { x: 24, y: 12 },
+    fontStyle: 'bold',
+    shadow: {
+      offsetX: 0,
+      offsetY: 4,
+      color: '#000000',
+      blur: 8,
+      stroke: false,
+      fill: true
+    }
   })
   notification.setOrigin(0.5)
   notification.setDepth(400)
-  notification.setScrollFactor(0) // Fixed to screen
+  notification.setScrollFactor(0)
   
-  // Make it ignored by main camera (only UI camera renders it)
   this.cameras.main.ignore([notification])
   
-  // Fade out and destroy after 2 seconds
   this.tweens.add({
     targets: notification,
     alpha: 0,
@@ -1634,22 +1651,31 @@ handleResize(gameSize) {
 
 
 
+
+
 createZoomButtons() {
   const buttonSize = this.isMobile ? 60 : 50
   const fontSize = this.isMobile ? '40px' : '32px'
-  
-  // Position below the resource bar - account for safe area padding
   const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
   const mobileTopPadding = this.isMobile ? resourceBarHeight + 10 : 50
 
   const buttonStyle = {
+    fontFamily: 'Orbitron',
     fontSize: fontSize,
     color: '#66ccff',
     backgroundColor: '#1a2a3a',
     padding: { x: 15, y: 10 },
     fixedWidth: buttonSize,
     fixedHeight: buttonSize,
-    align: 'center'
+    align: 'center',
+    shadow: {
+      offsetX: 0,
+      offsetY: 2,
+      color: '#000000',
+      blur: 4,
+      stroke: false,
+      fill: true
+    }
   }
 
   if (this.isMobile) {
@@ -1691,125 +1717,27 @@ createZoomButtons() {
   })
 }
 
-
-
-  createScanButton() {
-    const fontSize = this.isMobile ? '18px' : '14px'
-    const mobileButtonRow2 = this.isMobile ? 130 : 100
-
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#00ff00',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 6 },
-      align: 'center'
-    }
-
-    if (this.isMobile) {
-      this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-        .setScrollFactor(0)
-    } else {
-      this.scanBtn = this.add.text(this.scale.width - 70, 215, 'SCAN', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
-
-    this.cameras.main.ignore([this.scanBtn])
-
-    this.scanBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.scanForPlanet()
-    })
-  }
-
-  createResearchButton() {
-    const fontSize = this.isMobile ? '16px' : '14px'
-    const mobileButtonRow3 = this.isMobile ? 200 : 170
-
-    const buttonStyle = {
-      fontSize: fontSize,
-      color: '#66ccff',
-      backgroundColor: '#1a2a3a',
-      padding: { x: 8, y: 6 },
-      align: 'center'
-    }
-
-    if (this.isMobile) {
-      this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive()
-        .setDepth(100)
-        .setScrollFactor(0)
-    } else {
-      this.researchBtn = this.add.text(this.scale.width - 70, 280, 'RESEARCH', buttonStyle)
-        .setOrigin(0.5)
-        .setInteractive({ useHandCursor: true })
-        .setDepth(100)
-    }
-
-    this.cameras.main.ignore([this.researchBtn])
-
-    this.researchBtn.on('pointerup', (pointer) => {
-      pointer.event.stopPropagation()
-      this.researchPanel.show()
-    })
-  }
-
-
-
-createRefineryButton() {
-  const fontSize = this.isMobile ? '16px' : '14px'
-  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
-  const mobileButtonRow4 = this.isMobile ? resourceBarHeight + 220 : 250
-
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#ff6600',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
-  }
-
-  if (this.isMobile) {
-    this.refineryBtn = this.add.text(this.scale.width / 2, mobileButtonRow4, 'REFINERY', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.refineryBtn = this.add.text(this.scale.width - 70, 375, 'REFINERY', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-  }
-
-  this.cameras.main.ignore([this.refineryBtn])
-
-  this.refineryBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.refineryPanel.show()
-  })
-}
-
-
-
-
-
 createDealershipButton() {
-  const fontSize = this.isMobile ? '14px' : '14px'
+  const fontSize = this.isMobile ? '15px' : '14px'
   const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
   const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
 
   const buttonStyle = {
+    fontFamily: 'Rajdhani',
     fontSize: fontSize,
+    fontStyle: 'bold',
     color: '#ffaa00',
     backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    padding: { x: 10, y: 8 },
+    align: 'center',
+    shadow: {
+      offsetX: 0,
+      offsetY: 2,
+      color: '#000000',
+      blur: 3,
+      stroke: false,
+      fill: true
+    }
   }
 
   if (this.isMobile) {
@@ -1839,11 +1767,21 @@ createScanButton() {
   const mobileButtonRow2 = this.isMobile ? resourceBarHeight + 80 : 110
 
   const buttonStyle = {
+    fontFamily: 'Rajdhani',
     fontSize: fontSize,
+    fontStyle: 'bold',
     color: '#00ff00',
     backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    padding: { x: 10, y: 8 },
+    align: 'center',
+    shadow: {
+      offsetX: 0,
+      offsetY: 2,
+      color: '#000000',
+      blur: 3,
+      stroke: false,
+      fill: true
+    }
   }
 
   if (this.isMobile) {
@@ -1873,11 +1811,21 @@ createResearchButton() {
   const mobileButtonRow3 = this.isMobile ? resourceBarHeight + 150 : 180
 
   const buttonStyle = {
+    fontFamily: 'Rajdhani',
     fontSize: fontSize,
+    fontStyle: 'bold',
     color: '#66ccff',
     backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    padding: { x: 10, y: 8 },
+    align: 'center',
+    shadow: {
+      offsetX: 0,
+      offsetY: 2,
+      color: '#000000',
+      blur: 3,
+      stroke: false,
+      fill: true
+    }
   }
 
   if (this.isMobile) {
@@ -1901,76 +1849,55 @@ createResearchButton() {
   })
 }
 
-
-
-
-
-
-createScanButton() {
-  const fontSize = this.isMobile ? '18px' : '14px'
-  const mobileButtonRow2 = this.isMobile ? 140 : 110
-
-  const buttonStyle = {
-    fontSize: fontSize,
-    color: '#00ff00',
-    backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
-  }
-
-  if (this.isMobile) {
-    this.scanBtn = this.add.text(this.scale.width / 2 + 70, mobileButtonRow2, 'SCAN', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive()
-      .setDepth(100)
-      .setScrollFactor(0)
-  } else {
-    this.scanBtn = this.add.text(this.scale.width - 70, 245, 'SCAN', buttonStyle)
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .setDepth(100)
-  }
-
-  this.cameras.main.ignore([this.scanBtn])
-
-  this.scanBtn.on('pointerup', (pointer) => {
-    pointer.event.stopPropagation()
-    this.scanForPlanet()
-  })
-}
-
-createResearchButton() {
+createRefineryButton() {
   const fontSize = this.isMobile ? '16px' : '14px'
-  const mobileButtonRow3 = this.isMobile ? 210 : 180
+  const resourceBarHeight = this.resourceBar ? this.resourceBar.getBarHeight() : 40
+  const mobileButtonRow4 = this.isMobile ? resourceBarHeight + 220 : 250
 
   const buttonStyle = {
+    fontFamily: 'Rajdhani',
     fontSize: fontSize,
-    color: '#66ccff',
+    fontStyle: 'bold',
+    color: '#ff6600',
     backgroundColor: '#1a2a3a',
-    padding: { x: 8, y: 6 },
-    align: 'center'
+    padding: { x: 10, y: 8 },
+    align: 'center',
+    shadow: {
+      offsetX: 0,
+      offsetY: 2,
+      color: '#000000',
+      blur: 3,
+      stroke: false,
+      fill: true
+    }
   }
 
   if (this.isMobile) {
-    this.researchBtn = this.add.text(this.scale.width / 2, mobileButtonRow3, 'RESEARCH', buttonStyle)
+    this.refineryBtn = this.add.text(this.scale.width / 2, mobileButtonRow4, 'REFINERY', buttonStyle)
       .setOrigin(0.5)
       .setInteractive()
       .setDepth(100)
       .setScrollFactor(0)
   } else {
-    this.researchBtn = this.add.text(this.scale.width - 70, 310, 'RESEARCH', buttonStyle)
+    this.refineryBtn = this.add.text(this.scale.width - 70, 375, 'REFINERY', buttonStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
       .setDepth(100)
   }
 
-  this.cameras.main.ignore([this.researchBtn])
+  this.cameras.main.ignore([this.refineryBtn])
 
-  this.researchBtn.on('pointerup', (pointer) => {
+  this.refineryBtn.on('pointerup', (pointer) => {
     pointer.event.stopPropagation()
-    this.researchPanel.show()
+    this.refineryPanel.show()
   })
-}
+} 
+
+
+
+
+
+
 
 
 

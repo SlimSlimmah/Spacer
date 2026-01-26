@@ -1158,12 +1158,15 @@ this.research = {
 
   // Create research panel
   this.researchPanel = new ResearchPanel(this)
+  this.cameras.main.ignore([this.researchPanel.container])
   
   // Create dealership panel
   this.dealershipPanel = new DealershipPanel(this)
+  this.cameras.main.ignore([this.dealershipPanel.container])
   
   // Create refinery panel
   this.refineryPanel = new RefineryPanel(this)
+  this.cameras.main.ignore([this.refineryPanel.container])
 
   // Second planet (gray COMMON level 1)
   const commonRarity = { 

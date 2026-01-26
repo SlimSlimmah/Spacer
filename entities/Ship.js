@@ -213,16 +213,19 @@ returnHome() {
       this.x = this.spiralCenter.x + Math.cos(this.spiralAngle) * this.spiralRadius
       this.y = this.spiralCenter.y + Math.sin(this.spiralAngle) * this.spiralRadius
       
-      // Add trail point every frame
       this.addTrailPoint(this.x, this.y)
       
       this.statusText.setPosition(this.x, this.y - 15)
       this.draw()
     },
     onComplete: () => {
-      // DELIVERED! Add revolution to resource bar by rarity
-      if (this.scene.resourceBar && this.assignedPlanet && this.assignedPlanet.rarity) {
-        this.scene.resourceBar.addRevolution(this.assignedPlanet.rarity)
+      // DELIVERED! Add resource based on planet type
+      if (this.scene.resourceBar && this.assignedPlanet) {
+        if (this.assignedPlanet.type === 'gas') {
+          this.scene.resourceBar.addGas(1)
+        } else if (this.assignedPlanet.rarity) {
+          this.scene.resourceBar.addRevolution(this.assignedPlanet.rarity)
+        }
       }
       
       // Back home - set up orbit once then return to mining

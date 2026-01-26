@@ -60,17 +60,18 @@ class RingLayer {
 }
 
 export default class BasePlanet {
-  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70, textColor = '#ffffff', rarity = null) {
-    this.scene = scene
-    this.x = x
-    this.y = y
-    this.coreColor = coreColor
-    this.ringColor = ringColor
-    this.name = name
-    this.textColor = textColor
-    this.rarity = rarity
-    this.onClickCallback = null
-    this.onHoldCallback = null
+  constructor(scene, x, y, coreColor = 0x2a4a6e, ringColor = 0x66ccff, name = '', coreRadius = 70, textColor = '#ffffff', rarity = null, type = 'mineral') {
+  this.scene = scene
+  this.x = x
+  this.y = y
+  this.coreColor = coreColor
+  this.ringColor = ringColor
+  this.name = name
+  this.textColor = textColor
+  this.rarity = rarity
+  this.type = type // 'mineral' or 'gas'
+  this.onClickCallback = null
+  this.onHoldCallback = null
     
     this.graphics = scene.add.graphics()
     this.graphics.setDepth(1)

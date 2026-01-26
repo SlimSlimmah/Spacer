@@ -922,13 +922,13 @@ class RefineryPanel {
     this.container.add(this.closeBtn)
 
     // Info text
-    this.infoText = scene.add.text(0, -60, 'Convert Gas into Fuel\n1 Gas → 1 Fuel (10 seconds)', {
-      fontSize: '16px',
-      color: '#aaaaaa',
-      align: 'center'
-    })
-    this.infoText.setOrigin(0.5)
-    this.container.add(this.infoText)
+this.infoText = scene.add.text(0, -60, 'Convert Gas into Fuel\n1 Gas → 2 Fuel (10 seconds)', {
+  fontSize: '16px',
+  color: '#aaaaaa',
+  align: 'center'
+})
+this.infoText.setOrigin(0.5)
+this.container.add(this.infoText)
 
     // Resource display
     this.gasText = scene.add.text(0, -10, 'Gas: 0', {
@@ -1090,21 +1090,22 @@ class RefineryPanel {
       },
       onComplete: () => {
         // Add fuel
-        this.scene.resourceBar.addFuel(1)
-        
-        this.isRefining = false
-        this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
-        this.refineBtn.setInteractive({ useHandCursor: true })
-        
-        this.progressBg.setVisible(false)
-        this.progressFill.setVisible(false)
-        this.progressText.setVisible(false)
-        
-        this.updateResourceDisplay()
-        
-        // If auto-refine is on, start next refine
-        if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
-          this.startRefining()
+  // Add 2 fuel instead of 1
+  this.scene.resourceBar.addFuel(2)
+  
+  this.isRefining = false
+  this.refineBtn.setStyle({ backgroundColor: '#ff6600' })
+  this.refineBtn.setInteractive({ useHandCursor: true })
+  
+  this.progressBg.setVisible(false)
+  this.progressFill.setVisible(false)
+  this.progressText.setVisible(false)
+  
+  this.updateResourceDisplay()
+  
+  // If auto-refine is on, start next refine
+  if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
+    this.startRefining()
         }
       }
     })

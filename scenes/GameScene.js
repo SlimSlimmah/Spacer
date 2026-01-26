@@ -531,12 +531,14 @@ class DealershipPanel {
 
 
 // ResourceBar class - update the constructor
+// ResourceBar class
 class ResourceBar {
   constructor(scene) {
     this.scene = scene
     this.resources = {}
+    this.gasCount = 0
     
-    // Even more safe area padding for mobile (80px should clear most notches/status bars)
+    // Safe area padding for mobile
     const topPadding = scene.isMobile ? 80 : 0
     
     // Create container fixed to screen
@@ -558,8 +560,25 @@ class ResourceBar {
     // Container for resource items (will be updated dynamically)
     this.resourceItems = []
     
-    // Planet count - positioned on the right
-    this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 10, 'PLANETS: 1/10', {
+    // Gas counter with icon - positioned on the right, top
+    this.gasContainer = scene.add.container(barWidth - 150, barHeight / 2 - 10)
+    this.container.add(this.gasContainer)
+    
+    // Gas can icon
+    this.gasIcon = scene.add.graphics()
+    this.drawGasCanIcon(this.gasIcon, 0, 0)
+    this.gasContainer.add(this.gasIcon)
+    
+    this.gasCountText = scene.add.text(20, 0, '0', {
+      fontSize: '14px',
+      color: '#ffcc00',
+      fontStyle: 'bold'
+    })
+    this.gasCountText.setOrigin(0, 0.5)
+    this.gasContainer.add(this.gasCountText)
+    
+    // Planet count
+    this.planetCountText = scene.add.text(barWidth - 20, barHeight / 2 - 10, 'PLANETS: 2/10', {
       fontSize: '14px',
       color: '#66ccff',
       fontStyle: 'bold'
@@ -567,7 +586,7 @@ class ResourceBar {
     this.planetCountText.setOrigin(1, 0.5)
     this.container.add(this.planetCountText)
     
-    // Ship count (supply) - positioned on the right below planets
+    // Ship count (supply)
     this.shipCountText = scene.add.text(barWidth - 20, barHeight / 2 + 10, 'SHIPS: 1/10', {
       fontSize: '14px',
       color: '#ffaa00',
@@ -578,6 +597,25 @@ class ResourceBar {
     
     this.topPadding = topPadding
     this.update()
+  }
+  
+  drawGasCanIcon(graphics, x, y) {
+    // Simple gas can icon
+    graphics.lineStyle(2, 0xffcc00, 1)
+    graphics.fillStyle(0xffcc00, 0.3)
+    
+    // Can body
+    graphics.fillRect(x - 6, y - 6, 12, 12)
+    graphics.strokeRect(x - 6, y - 6, 12, 12)
+    
+    // Spout
+    graphics.fillRect(x + 4, y - 10, 4, 6)
+    graphics.strokeRect(x + 4, y - 10, 4, 6)
+  }
+  
+  addGas(amount) {
+    this.gasCount += amount
+    this.gasCountText.setText(this.gasCount.toString())
   }
   
   addRevolution(rarity) {
@@ -645,6 +683,7 @@ class ResourceBar {
     this.bg.lineBetween(0, 40, width, 40)
     
     // Reposition counters
+    this.gasContainer.setPosition(width - 150, 10)
     this.planetCountText.setPosition(width - 20, 10)
     this.shipCountText.setPosition(width - 20, 30)
   }
@@ -706,8 +745,16 @@ create() {
   // Create dealership panel
   this.dealershipPanel = new DealershipPanel(this)
 
-  // Second planet (gray) with PLANET1 nameplate
-  this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'PLANET1', 70, '#999999', null)
+// Second planet (gray COMMON level 1)
+  const commonRarity = { 
+    name: 'COMMON', 
+    ringBase: 0x999999, 
+    textColor: '#999999' 
+  }
+  this.addPlanet(cx + 250, cy - 100, 0x555555, 0x999999, 'COMMON LV1', 55, '#999999', commonRarity, 'mineral')
+
+  // Gas planet (yellow/orange swirls)
+  this.addPlanet(cx - 200, cy + 150, 0x8a6a2d, 0xddaa44, 'GAS PLANET', 80, '#ddaa44', null, 'gas')
 
 
     // Camera pan setup
@@ -754,11 +801,10 @@ create() {
 
 
 
-addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff', rarity = null) {
-  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius, textColor, rarity)
+addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff', rarity = null, type = 'mineral') {
+  const planet = new BasePlanet(this, x, y, coreColor, ringColor, name, coreRadius, textColor, rarity, type)
   this.planets.push(planet)
 
-  // Set up planet click handler for travel
   planet.setOnClick((clickedPlanet) => {
     const idleShip = this.ships.find(ship => ship.state === 'IDLE')
     if (idleShip) {
@@ -772,7 +818,6 @@ addPlanet(x, y, coreColor, ringColor, name, coreRadius, textColor = '#ffffff', r
 
   this.updateUICameraIgnoreList()
   
-  // Update planet count in resource bar
   if (this.resourceBar) {
     this.resourceBar.updatePlanetCount(this.planets.length, this.maxPlanets)
   }
@@ -807,7 +852,6 @@ getRarityColors() {
 }
 
 scanForPlanet() {
-  // Check if at planet limit
   if (this.planets.length >= this.maxPlanets) {
     console.log("Planet limit reached!")
     return
@@ -818,7 +862,6 @@ scanForPlanet() {
   let attempts = 0
   const maxAttempts = 50
 
-  // Spawn distance increases with planet count
   const baseMinDistance = 200
   const baseMaxDistance = 400
   const distanceIncrease = this.planets.length * 50
@@ -859,27 +902,46 @@ scanForPlanet() {
     attempts++
     
     if (validPosition) {
-      const rarity = this.getRarityColors()
+      // 10% chance for gas planet
+      const isGasPlanet = Math.random() < 0.1
       
-      // Add color variation for visual variety (stays within rarity theme)
-      const colorVariation = () => Phaser.Math.Between(-30, 30)
-      
-      const coreColor = Phaser.Display.Color.GetColor(
-        Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation() - 40, 0, 255),
-        Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation() - 40, 0, 255),
-        Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation() - 40, 0, 255)
-      )
-      
-      const ringColor = Phaser.Display.Color.GetColor(
-        Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation(), 0, 255),
-        Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation(), 0, 255),
-        Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation(), 0, 255)
-      )
+      if (isGasPlanet) {
+        // Gas planet - yellow/orange theme
+        const colorVariation = () => Phaser.Math.Between(-20, 20)
+        const coreColor = Phaser.Display.Color.GetColor(
+          Phaser.Math.Clamp(138 + colorVariation(), 100, 180),
+          Phaser.Math.Clamp(106 + colorVariation(), 80, 140),
+          Phaser.Math.Clamp(45 + colorVariation(), 30, 80)
+        )
+        const ringColor = Phaser.Display.Color.GetColor(
+          Phaser.Math.Clamp(221 + colorVariation(), 200, 255),
+          Phaser.Math.Clamp(170 + colorVariation(), 150, 200),
+          Phaser.Math.Clamp(68 + colorVariation(), 50, 100)
+        )
+        
+        const name = `GAS LV${level}`
+        this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, '#ddaa44', null, 'gas')
+      } else {
+        // Regular mineral planet with rarity
+        const rarity = this.getRarityColors()
+        
+        const colorVariation = () => Phaser.Math.Between(-30, 30)
+        
+        const coreColor = Phaser.Display.Color.GetColor(
+          Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation() - 40, 0, 255),
+          Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation() - 40, 0, 255),
+          Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation() - 40, 0, 255)
+        )
+        
+        const ringColor = Phaser.Display.Color.GetColor(
+          Phaser.Math.Clamp(((rarity.ringBase >> 16) & 0xFF) + colorVariation(), 0, 255),
+          Phaser.Math.Clamp(((rarity.ringBase >> 8) & 0xFF) + colorVariation(), 0, 255),
+          Phaser.Math.Clamp((rarity.ringBase & 0xFF) + colorVariation(), 0, 255)
+        )
 
-      const planetNumber = this.planets.length + 1
-      const name = `${rarity.name} LV${level}`
-
-      this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, rarity.textColor, rarity)
+        const name = `${rarity.name} LV${level}`
+        this.addPlanet(x, y, coreColor, ringColor, name, coreRadius, rarity.textColor, rarity, 'mineral')
+      }
     }
   }
 

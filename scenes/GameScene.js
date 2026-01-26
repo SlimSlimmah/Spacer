@@ -733,6 +733,15 @@ class ResourceBar {
     this.update()
   }
   
+  removeFuel(amount) {
+  if (this.fuelCount >= amount) {
+    this.fuelCount -= amount
+    this.update()
+    return true
+  }
+  return false
+}
+  
   removeGas(amount) {
     if (this.gasCount >= amount) {
       this.gasCount -= amount
@@ -864,6 +873,7 @@ class ResourceBar {
 
 
 // RefineryPanel class
+// RefineryPanel class
 class RefineryPanel {
   constructor(scene) {
     this.scene = scene
@@ -871,6 +881,7 @@ class RefineryPanel {
     this.justOpened = false
     this.isRefining = false
     this.refineProgress = 0
+    this.autoRefine = false
 
     // Create panel container
     this.container = scene.add.container(0, 0)
@@ -879,7 +890,7 @@ class RefineryPanel {
     this.container.setScrollFactor(0)
 
     const panelWidth = 400
-    const panelHeight = 300
+    const panelHeight = 350
 
     // Background
     this.bg = scene.add.graphics()
@@ -911,7 +922,7 @@ class RefineryPanel {
     this.container.add(this.closeBtn)
 
     // Info text
-    this.infoText = scene.add.text(0, -40, 'Convert Gas into Fuel\n1 Gas → 1 Fuel (10 seconds)', {
+    this.infoText = scene.add.text(0, -60, 'Convert Gas into Fuel\n1 Gas → 1 Fuel (10 seconds)', {
       fontSize: '16px',
       color: '#aaaaaa',
       align: 'center'
@@ -920,7 +931,7 @@ class RefineryPanel {
     this.container.add(this.infoText)
 
     // Resource display
-    this.gasText = scene.add.text(0, 10, 'Gas: 0', {
+    this.gasText = scene.add.text(0, -10, 'Gas: 0', {
       fontSize: '18px',
       color: '#ffcc00',
       fontStyle: 'bold'
@@ -928,13 +939,39 @@ class RefineryPanel {
     this.gasText.setOrigin(0.5)
     this.container.add(this.gasText)
 
-    this.fuelText = scene.add.text(0, 40, 'Fuel: 0', {
+    this.fuelText = scene.add.text(0, 20, 'Fuel: 0', {
       fontSize: '18px',
       color: '#ff6600',
       fontStyle: 'bold'
     })
     this.fuelText.setOrigin(0.5)
     this.container.add(this.fuelText)
+
+    // Auto-refine checkbox
+    this.autoRefineCheckbox = scene.add.graphics()
+    this.autoRefineCheckbox.lineStyle(2, 0xffffff, 1)
+    this.autoRefineCheckbox.strokeRect(-70, 45, 20, 20)
+    this.container.add(this.autoRefineCheckbox)
+
+    this.autoRefineLabel = scene.add.text(-45, 55, 'Auto Refine', {
+      fontSize: '16px',
+      color: '#ffffff'
+    })
+    this.autoRefineLabel.setOrigin(0, 0.5)
+    this.container.add(this.autoRefineLabel)
+
+    // Make checkbox interactive
+    const checkboxHitArea = scene.add.rectangle(-60, 55, 120, 30, 0x000000, 0)
+    checkboxHitArea.setInteractive({ useHandCursor: true })
+    checkboxHitArea.on('pointerup', (pointer) => {
+      pointer.event.stopPropagation()
+      this.toggleAutoRefine()
+    })
+    this.container.add(checkboxHitArea)
+
+    this.autoRefineCheckmark = scene.add.graphics()
+    this.autoRefineCheckmark.setVisible(false)
+    this.container.add(this.autoRefineCheckmark)
 
     // Progress bar (hidden initially)
     this.progressBg = scene.add.graphics()
@@ -945,7 +982,7 @@ class RefineryPanel {
     this.progressFill.setVisible(false)
     this.container.add(this.progressFill)
 
-    this.progressText = scene.add.text(0, 90, '', {
+    this.progressText = scene.add.text(0, 110, '', {
       fontSize: '14px',
       color: '#ffffff'
     })
@@ -954,7 +991,7 @@ class RefineryPanel {
     this.container.add(this.progressText)
 
     // Refine button
-    this.refineBtn = scene.add.text(0, 120, 'REFINE GAS', {
+    this.refineBtn = scene.add.text(0, 140, 'REFINE GAS', {
       fontSize: '18px',
       color: '#ffffff',
       backgroundColor: '#ff6600',
@@ -973,7 +1010,7 @@ class RefineryPanel {
 
     // Click anywhere to close
     this.closeListener = this.scene.input.on('pointerup', (pointer) => {
-      if (this.isVisible && !this.justOpened && !this.isRefining) {
+      if (this.isVisible && !this.justOpened) {
         const screenX = pointer.x
         const screenY = pointer.y
         
@@ -994,6 +1031,29 @@ class RefineryPanel {
         }
       }
     })
+  }
+
+  toggleAutoRefine() {
+    this.autoRefine = !this.autoRefine
+    
+    if (this.autoRefine) {
+      // Draw checkmark
+      this.autoRefineCheckmark.clear()
+      this.autoRefineCheckmark.lineStyle(3, 0x00ff00, 1)
+      this.autoRefineCheckmark.beginPath()
+      this.autoRefineCheckmark.moveTo(-65, 55)
+      this.autoRefineCheckmark.lineTo(-58, 62)
+      this.autoRefineCheckmark.lineTo(-52, 50)
+      this.autoRefineCheckmark.strokePath()
+      this.autoRefineCheckmark.setVisible(true)
+      
+      // Try to start refining if not already refining
+      if (!this.isRefining) {
+        this.startRefining()
+      }
+    } else {
+      this.autoRefineCheckmark.setVisible(false)
+    }
   }
 
   startRefining() {
@@ -1041,6 +1101,11 @@ class RefineryPanel {
         this.progressText.setVisible(false)
         
         this.updateResourceDisplay()
+        
+        // If auto-refine is on, start next refine
+        if (this.autoRefine && this.scene.resourceBar.gasCount >= 1) {
+          this.startRefining()
+        }
       }
     })
   }
@@ -1049,7 +1114,7 @@ class RefineryPanel {
     const barWidth = 300
     const barHeight = 20
     const barX = -barWidth / 2
-    const barY = 70
+    const barY = 80
 
     // Background
     this.progressBg.clear()
@@ -1086,8 +1151,7 @@ class RefineryPanel {
   }
 
   hide() {
-    if (this.isRefining) return // Can't close while refining
-    
+    // Can now close while refining
     this.isVisible = false
     this.container.setVisible(false)
   }
@@ -1145,6 +1209,9 @@ this.research = {
   // Create resource bar FIRST
   this.resourceBar = new ResourceBar(this)
   this.cameras.main.ignore([this.resourceBar.container])
+  
+    // Start with 100 fuel
+  this.resourceBar.addFuel(100)
 
   // Ships array
   this.ships = []
